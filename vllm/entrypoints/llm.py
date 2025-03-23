@@ -11,39 +11,69 @@ import torch.nn as nn
 from tqdm import tqdm
 from typing_extensions import TypeVar, deprecated
 
-from vllm.beam_search import (BeamSearchInstance, BeamSearchOutput,
-                              BeamSearchSequence, get_beam_search_score)
+from vllm.beam_search import (
+    BeamSearchInstance,
+    BeamSearchOutput,
+    BeamSearchSequence,
+    get_beam_search_score,
+)
 from vllm.config import CompilationConfig
-from vllm.engine.arg_utils import (EngineArgs, HfOverrides, PoolerConfig,
-                                   TaskOption)
+from vllm.engine.arg_utils import (
+    EngineArgs,
+    HfOverrides,
+    PoolerConfig,
+    TaskOption,
+)
 from vllm.engine.llm_engine import LLMEngine
-from vllm.entrypoints.chat_utils import (ChatCompletionMessageParam,
-                                         ChatTemplateContentFormatOption,
-                                         apply_hf_chat_template,
-                                         apply_mistral_chat_template,
-                                         parse_chat_messages,
-                                         resolve_chat_template_content_format)
-from vllm.entrypoints.score_utils import (_cosine_similarity,
-                                          _validate_score_input_lens)
+from vllm.entrypoints.chat_utils import (
+    ChatCompletionMessageParam,
+    ChatTemplateContentFormatOption,
+    apply_hf_chat_template,
+    apply_mistral_chat_template,
+    parse_chat_messages,
+    resolve_chat_template_content_format,
+)
+from vllm.entrypoints.score_utils import (
+    _cosine_similarity,
+    _validate_score_input_lens,
+)
 from vllm.inputs import PromptType, SingletonPrompt, TextPrompt, TokensPrompt
 from vllm.inputs.parse import is_token_prompt, parse_and_batch_prompt
 from vllm.logger import init_logger
 from vllm.lora.request import LoRARequest
 from vllm.model_executor.guided_decoding.guided_fields import (
-    GuidedDecodingRequest, LLMGuidedOptions)
-from vllm.outputs import (ClassificationRequestOutput, EmbeddingRequestOutput,
-                          PoolingRequestOutput, RequestOutput,
-                          ScoringRequestOutput)
+    GuidedDecodingRequest,
+    LLMGuidedOptions,
+)
+from vllm.outputs import (
+    ClassificationRequestOutput,
+    EmbeddingRequestOutput,
+    PoolingRequestOutput,
+    RequestOutput,
+    ScoringRequestOutput,
+)
 from vllm.pooling_params import PoolingParams
 from vllm.prompt_adapter.request import PromptAdapterRequest
-from vllm.sampling_params import (BeamSearchParams, GuidedDecodingParams,
-                                  RequestOutputKind, SamplingParams)
-from vllm.transformers_utils.tokenizer import (AnyTokenizer, MistralTokenizer,
-                                               get_cached_tokenizer)
+from vllm.sampling_params import (
+    BeamSearchParams,
+    GuidedDecodingParams,
+    RequestOutputKind,
+    SamplingParams,
+)
+from vllm.transformers_utils.tokenizer import (
+    AnyTokenizer,
+    MistralTokenizer,
+    get_cached_tokenizer,
+)
 from vllm.transformers_utils.tokenizer_group import TokenizerGroup
 from vllm.usage.usage_lib import UsageContext
-from vllm.utils import (Counter, Device, deprecate_args, deprecate_kwargs,
-                        is_list_of)
+from vllm.utils import (
+    Counter,
+    Device,
+    deprecate_args,
+    deprecate_kwargs,
+    is_list_of,
+)
 
 logger = init_logger(__name__)
 
@@ -239,11 +269,14 @@ class LLM:
             **kwargs,
         )
 
+        import dataclasses
+        formatted_engine_args = "\n".join([f"{k}: {v}" for k, v in dataclasses.asdict(engine_args).items()])
+        logger.info(f"LLM::INIT:ENGINE_ARGS:\n{formatted_engine_args}")
         # Create the Engine (autoselects V0 vs V1)
         self.llm_engine = LLMEngine.from_engine_args(
             engine_args=engine_args, usage_context=UsageContext.LLM_CLASS)
         self.engine_class = type(self.llm_engine)
-
+        logger.info(f"LLM::INIT:ENGINE_CLASS:\n{self.engine_class}")
         self.request_counter = Counter()
         self.default_sampling_params: Union[dict[str, Any], None] = None
 

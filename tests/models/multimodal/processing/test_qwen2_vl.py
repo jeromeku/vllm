@@ -35,10 +35,13 @@ def test_processor_override(
         limit_mm_per_prompt={"image": num_imgs},
     )
     tokenizer = cached_tokenizer_from_config(ctx.model_config)
+    breakpoint()
+    print(f"Before creating processor: {MULTIMODAL_REGISTRY._processor_factories.data}")
     processor = MULTIMODAL_REGISTRY.create_processor(
         ctx.model_config,
         tokenizer=tokenizer,
     )
+    print(f"After creating processor: {MULTIMODAL_REGISTRY._processor_factories.data}")
     hf_processor_mm_kwargs = {} if kwargs_on_init else mm_processor_kwargs
 
     # Build the image str / prompt based on the number of images we pass

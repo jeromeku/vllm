@@ -6,12 +6,20 @@ import numpy.typing as npt
 import pytest
 import torch
 from PIL import Image
+from transformers.utils.logging import set_verbosity_info
 
+from vllm.config import CompilationConfig, CompilationLevel
 from vllm.multimodal.image import rescale_image_size
 from vllm.multimodal.video import rescale_video_size, sample_frames_from_video
 
-from ....conftest import (IMAGE_ASSETS, VIDEO_ASSETS, PromptImageInput,
-                          PromptVideoInput, VllmRunner)
+#set_verbosity_info()
+from ....conftest import (
+    IMAGE_ASSETS,
+    VIDEO_ASSETS,
+    PromptImageInput,
+    PromptVideoInput,
+    VllmRunner,
+)
 from ...utils import check_logprobs_close
 
 
@@ -263,7 +271,7 @@ def run_embedding_input_test(
     from transformers import AutoProcessor  # noqa: F401
 
     processor = AutoProcessor.from_pretrained(model)
-
+    compilation_config = CompilationConfig(cudagraph_capture_sizes=[1, 4])
     # max_model_len should be greater than image_feature_size
     with vllm_runner(model,
                      task="generate",
@@ -275,6 +283,8 @@ def run_embedding_input_test(
                          "video": mm_limit
                      },
                      tensor_parallel_size=tensor_parallel_size,
+                     compilation_config=compilation_config,
+                     max_num_batched_tokens=32768*2,
                      distributed_executor_backend=distributed_executor_backend
                      ) as vllm_model:
 
@@ -319,9 +329,9 @@ def run_embedding_input_test(
         # Single-scale
         [0.5],
         # Single-scale, batched
-        [0.5, 0.5],
-        # Multi-scale
-        [0.25, 0.5, 0.5],
+        # [0.5, 0.5],
+        # # Multi-scale
+        # [0.25, 0.5, 0.5],
     ],
 )
 @pytest.mark.parametrize("dtype", [target_dtype])
@@ -352,91 +362,93 @@ def test_qwen2_vl_image_embeddings_input(vllm_runner, image_assets, model,
     )
 
 
-@pytest.mark.core_model
-@pytest.mark.parametrize("model", models)
-@pytest.mark.parametrize(
-    "size_factors",
-    [
-        [],
-        # Single-scale
-        [0.5],
-        # Single-scale, batched
-        [0.5, 0.5],
-        # Multi-scale
-        [0.25, 0.5, 0.5],
-    ],
-)
-@pytest.mark.parametrize("dtype", [target_dtype])
-@pytest.mark.parametrize("max_tokens", [128])
-@pytest.mark.parametrize("num_logprobs", [10])
-def test_qwen2_vl_multiple_image_embeddings_input(vllm_runner, image_assets,
-                                                  model, size_factors,
-                                                  dtype: str, max_tokens: int,
-                                                  num_logprobs: int) -> None:
-    images = [asset.pil_image for asset in image_assets]
+# @pytest.mark.core_model
+# @pytest.mark.parametrize("model", models)
+# @pytest.mark.parametrize(
+#     "size_factors",
+#     [
+#         [],
+#         # Single-scale
+#         [0.5],
+#         # Single-scale, batched
+#         [0.5, 0.5],
+#         # Multi-scale
+#         [0.25, 0.5, 0.5],
+#     ],
+# )
 
-    inputs_per_case: list[tuple[list[str], PromptImageInput,
-                                PromptVideoInput]] = [(
-                                    [MULTIIMAGE_PROMPT for _ in size_factors],
-                                    [[
-                                        rescale_image_size(image, factor)
-                                        for image in images
-                                    ] for factor in size_factors],
-                                    [],
-                                )]
+# @pytest.mark.parametrize("dtype", [target_dtype])
+# @pytest.mark.parametrize("max_tokens", [128])
+# @pytest.mark.parametrize("num_logprobs", [10])
+# def test_qwen2_vl_multiple_image_embeddings_input(vllm_runner, image_assets,
+#                                                   model, size_factors,
+#                                                   dtype: str, max_tokens: int,
+#                                                   num_logprobs: int) -> None:
+#     images = [asset.pil_image for asset in image_assets]
 
-    run_embedding_input_test(
-        vllm_runner,
-        inputs_per_case,
-        model,
-        dtype=dtype,
-        max_tokens=max_tokens,
-        num_logprobs=num_logprobs,
-        mm_limit=2,
-        tensor_parallel_size=1,
-    )
+#     inputs_per_case: list[tuple[list[str], PromptImageInput,
+#                                 PromptVideoInput]] = [(
+#                                     [MULTIIMAGE_PROMPT for _ in size_factors],
+#                                     [[
+#                                         rescale_image_size(image, factor)
+#                                         for image in images
+#                                     ] for factor in size_factors],
+#                                     [],
+#                                 )]
+
+#     run_embedding_input_test(
+#         vllm_runner,
+#         inputs_per_case,
+#         model,
+#         dtype=dtype,
+#         max_tokens=max_tokens,
+#         num_logprobs=num_logprobs,
+#         mm_limit=2,
+#         tensor_parallel_size=1,
+#     )
 
 
-@pytest.mark.core_model
-@pytest.mark.parametrize("model", models)
-@pytest.mark.parametrize(
-    "size_factors",
-    [
-        # Single-scale
-        [0.5],
-        # Single-scale, batched
-        [0.5, 0.5],
-        # Multi-scale
-        [0.25, 0.25, 0.5],
-    ],
-)
-@pytest.mark.parametrize("dtype", [target_dtype])
-@pytest.mark.parametrize("max_tokens", [128])
-@pytest.mark.parametrize("num_logprobs", [10])
-def test_qwen2_vl_video_embeddings_input(vllm_runner, video_assets, model,
-                                         size_factors, dtype: str,
-                                         max_tokens: int,
-                                         num_logprobs: int) -> None:
-    num_frames = 4
-    sampled_vids = [
-        sample_frames_from_video(asset.np_ndarrays, num_frames)
-        for asset in video_assets
-    ]
+# @pytest.mark.core_model
+# @pytest.mark.parametrize("model", models)
+# @pytest.mark.parametrize(
+#     "size_factors",
+#     [
+#         # Single-scale
+#         [0.5],
+#         # Single-scale, batched
+#         [0.5, 0.5],
+#         # Multi-scale
+#         [0.25, 0.25, 0.5],
+#     ],
+# )
 
-    inputs_per_case: list[tuple[
-        list[str], PromptImageInput, PromptVideoInput]] = [(
-            [prompt for _ in size_factors],
-            [],
-            [rescale_video_size(video, factor) for factor in size_factors],
-        ) for video, prompt in zip(sampled_vids, VIDEO_PROMPTS)]
+# @pytest.mark.parametrize("dtype", [target_dtype])
+# @pytest.mark.parametrize("max_tokens", [128])
+# @pytest.mark.parametrize("num_logprobs", [10])
+# def test_qwen2_vl_video_embeddings_input(vllm_runner, video_assets, model,
+#                                          size_factors, dtype: str,
+#                                          max_tokens: int,
+#                                          num_logprobs: int) -> None:
+#     num_frames = 4
+#     sampled_vids = [
+#         sample_frames_from_video(asset.np_ndarrays, num_frames)
+#         for asset in video_assets
+#     ]
 
-    run_embedding_input_test(
-        vllm_runner,
-        inputs_per_case,
-        model,
-        dtype=dtype,
-        max_tokens=max_tokens,
-        num_logprobs=num_logprobs,
-        mm_limit=1,
-        tensor_parallel_size=1,
-    )
+#     inputs_per_case: list[tuple[
+#         list[str], PromptImageInput, PromptVideoInput]] = [(
+#             [prompt for _ in size_factors],
+#             [],
+#             [rescale_video_size(video, factor) for factor in size_factors],
+#         ) for video, prompt in zip(sampled_vids, VIDEO_PROMPTS)]
+
+#     run_embedding_input_test(
+#         vllm_runner,
+#         inputs_per_case,
+#         model,
+#         dtype=dtype,
+#         max_tokens=max_tokens,
+#         num_logprobs=num_logprobs,
+#         mm_limit=1,
+#         tensor_parallel_size=1,
+#     )

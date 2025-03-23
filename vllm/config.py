@@ -13,8 +13,17 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
 from importlib.util import find_spec
 from pathlib import Path
-from typing import (TYPE_CHECKING, Any, Callable, ClassVar, Final, Literal,
-                    Optional, Protocol, Union)
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    ClassVar,
+    Final,
+    Literal,
+    Optional,
+    Protocol,
+    Union,
+)
 
 import torch
 from pydantic import BaseModel, Field, PrivateAttr
@@ -24,31 +33,47 @@ from transformers import PretrainedConfig
 import vllm.envs as envs
 from vllm.compilation.inductor_pass import CallableInductorPass, InductorPass
 from vllm.logger import init_logger
-from vllm.model_executor.layers.quantization import (QUANTIZATION_METHODS,
-                                                     get_quantization_config)
+from vllm.model_executor.layers.quantization import (
+    QUANTIZATION_METHODS,
+    get_quantization_config,
+)
 from vllm.model_executor.models import ModelRegistry
 from vllm.platforms import CpuArchEnum
 from vllm.sampling_params import GuidedDecodingParams
 from vllm.tracing import is_otel_available, otel_import_error_traceback
 from vllm.transformers_utils.config import (
-    ConfigFormat, get_config, get_hf_image_processor_config,
-    get_hf_text_config, get_pooling_config,
-    get_sentence_transformer_tokenizer_config, is_encoder_decoder,
-    try_get_generation_config, uses_mrope)
+    ConfigFormat,
+    get_config,
+    get_hf_image_processor_config,
+    get_hf_text_config,
+    get_pooling_config,
+    get_sentence_transformer_tokenizer_config,
+    is_encoder_decoder,
+    try_get_generation_config,
+    uses_mrope,
+)
 from vllm.transformers_utils.s3_utils import S3Model
 from vllm.transformers_utils.utils import is_s3
-from vllm.utils import (GiB_bytes, LayerBlockType, cuda_device_count_stateless,
-                        get_cpu_memory, random_uuid, resolve_obj_by_qualname)
+from vllm.utils import (
+    GiB_bytes,
+    LayerBlockType,
+    cuda_device_count_stateless,
+    get_cpu_memory,
+    random_uuid,
+    resolve_obj_by_qualname,
+)
 
 if TYPE_CHECKING:
     from ray.util.placement_group import PlacementGroup
 
     from vllm.executor.executor_base import ExecutorBase
     from vllm.model_executor.layers.quantization.base_config import (
-        QuantizationConfig)
+        QuantizationConfig,
+    )
     from vllm.model_executor.model_loader.loader import BaseModelLoader
     from vllm.transformers_utils.tokenizer_group.base_tokenizer_group import (
-        BaseTokenizerGroup)
+        BaseTokenizerGroup,
+    )
 else:
     QuantizationConfig = None
 
@@ -1419,7 +1444,8 @@ class ParallelConfig:
 
     def stateless_init_dp_group(self) -> "ProcessGroup":
         from vllm.distributed.utils import (
-            stateless_init_torch_distributed_process_group)
+            stateless_init_torch_distributed_process_group,
+        )
 
         # use gloo since the engine process might not have cuda device
         dp_group = stateless_init_torch_distributed_process_group(
@@ -1654,6 +1680,7 @@ class SchedulerConfig:
         return hash_str
 
     def __post_init__(self) -> None:
+        print(f"LLM:SCHEDULER_CONFIG:__post_init__: {self.max_num_batched_tokens=}")
         if self.max_num_batched_tokens is None:
             if self.enable_chunked_prefill:
                 if self.num_scheduler_steps > 1:
@@ -2079,7 +2106,8 @@ class SpeculativeConfig:
                             "Chunked prefill and EAGLE are not compatible.")
 
                     from vllm.transformers_utils.configs.eagle import (
-                        EAGLEConfig)
+                        EAGLEConfig,
+                    )
                     if isinstance(self.draft_model_config.hf_config,
                                   EAGLEConfig):
                         pass
@@ -3409,7 +3437,8 @@ class VllmConfig:
         from vllm.platforms import current_platform
         if model_config.quantization is not None:
             from vllm.model_executor.model_loader.weight_utils import (
-                get_quant_config)
+                get_quant_config,
+            )
             quant_config = get_quant_config(model_config, load_config)
             capability_tuple = current_platform.get_device_capability()
 

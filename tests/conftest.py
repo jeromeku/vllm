@@ -14,23 +14,36 @@ import torch.nn as nn
 import torch.nn.functional as F
 from huggingface_hub import snapshot_download
 from PIL import Image
-from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
-                          BatchEncoding, BatchFeature)
+from transformers import (
+    AutoConfig,
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    BatchEncoding,
+    BatchFeature,
+)
 from transformers.models.auto.auto_factory import _BaseAutoModelClass
 
-from tests.models.utils import (TokensTextLogprobs,
-                                TokensTextLogprobsPromptLogprobs)
+from tests.models.utils import (
+    TokensTextLogprobs,
+    TokensTextLogprobsPromptLogprobs,
+)
 from vllm import LLM, SamplingParams
 from vllm.assets.image import ImageAsset
 from vllm.assets.video import VideoAsset
 from vllm.config import TaskOption, TokenizerPoolConfig, _get_and_verify_dtype
 from vllm.connections import global_http_connection
-from vllm.distributed import (cleanup_dist_env_and_memory,
-                              init_distributed_environment,
-                              initialize_model_parallel)
-from vllm.inputs import (ExplicitEncoderDecoderPrompt, TextPrompt,
-                         TokensPrompt, to_enc_dec_tuple_list,
-                         zip_enc_dec_prompts)
+from vllm.distributed import (
+    cleanup_dist_env_and_memory,
+    init_distributed_environment,
+    initialize_model_parallel,
+)
+from vllm.inputs import (
+    ExplicitEncoderDecoderPrompt,
+    TextPrompt,
+    TokensPrompt,
+    to_enc_dec_tuple_list,
+    zip_enc_dec_prompts,
+)
 from vllm.logger import init_logger
 from vllm.outputs import RequestOutput
 from vllm.sampling_params import BeamSearchParams

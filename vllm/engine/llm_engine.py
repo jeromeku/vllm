@@ -7,58 +7,108 @@ from collections import deque
 from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import partial
-from typing import (TYPE_CHECKING, Callable, ClassVar, Deque, Dict, Iterable,
-                    List, Mapping, NamedTuple, Optional)
+from typing import (
+    TYPE_CHECKING,
+    Callable,
+    ClassVar,
+    Deque,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    NamedTuple,
+    Optional,
+    Set,
+    Type,
+    Union,
+    cast,
+    overload,
+)
 from typing import Sequence as GenericSequence
-from typing import Set, Type, Union, cast, overload
 
 import torch
 from typing_extensions import TypeVar, deprecated
 
 import vllm.envs as envs
-from vllm.config import (DecodingConfig, LoRAConfig, ModelConfig,
-                         ObservabilityConfig, ParallelConfig, SchedulerConfig,
-                         VllmConfig)
+from vllm.config import (
+    DecodingConfig,
+    LoRAConfig,
+    ModelConfig,
+    ObservabilityConfig,
+    ParallelConfig,
+    SchedulerConfig,
+    VllmConfig,
+)
 from vllm.core.scheduler import ScheduledSequenceGroup, SchedulerOutputs
 from vllm.engine.arg_utils import EngineArgs
 from vllm.engine.metrics_types import StatLoggerBase, Stats
-from vllm.engine.output_processor.interfaces import (
-    SequenceGroupOutputProcessor)
+from vllm.engine.output_processor.interfaces import SequenceGroupOutputProcessor
 from vllm.engine.output_processor.stop_checker import StopChecker
 from vllm.engine.output_processor.util import create_output_by_sequence_group
 from vllm.entrypoints.openai.logits_processors import (
-    get_logits_processors as get_openai_logits_processors)
+    get_logits_processors as get_openai_logits_processors,
+)
 from vllm.executor.executor_base import ExecutorBase
-from vllm.inputs import (INPUT_REGISTRY, InputRegistry, ProcessorInputs,
-                         PromptType, SingletonInputsAdapter)
+from vllm.inputs import (
+    INPUT_REGISTRY,
+    InputRegistry,
+    ProcessorInputs,
+    PromptType,
+    SingletonInputsAdapter,
+)
 from vllm.inputs.parse import is_encoder_decoder_inputs, is_token_prompt
 from vllm.inputs.preprocess import InputPreprocessor
 from vllm.logger import init_logger
 from vllm.logits_process import get_bad_words_logits_processors
 from vllm.lora.request import LoRARequest
 from vllm.model_executor.guided_decoding import (
-    get_local_guided_decoding_logits_processor)
+    get_local_guided_decoding_logits_processor,
+)
 from vllm.model_executor.layers.sampler import SamplerOutput
 from vllm.multimodal import MULTIMODAL_REGISTRY, MultiModalRegistry
-from vllm.outputs import (PoolingRequestOutput, RequestOutput,
-                          RequestOutputFactory)
+from vllm.outputs import (
+    PoolingRequestOutput,
+    RequestOutput,
+    RequestOutputFactory,
+)
 from vllm.pooling_params import PoolingParams
 from vllm.prompt_adapter.request import PromptAdapterRequest
 from vllm.sampling_params import RequestOutputKind, SamplingParams
-from vllm.sequence import (ExecuteModelRequest, ParallelSampleSequenceGroup,
-                           PoolingSequenceGroupOutput, Sequence, SequenceGroup,
-                           SequenceGroupBase, SequenceGroupMetadata,
-                           SequenceGroupOutput, SequenceStatus)
-from vllm.tracing import (SpanAttributes, SpanKind, extract_trace_context,
-                          init_tracer)
+from vllm.sequence import (
+    ExecuteModelRequest,
+    ParallelSampleSequenceGroup,
+    PoolingSequenceGroupOutput,
+    Sequence,
+    SequenceGroup,
+    SequenceGroupBase,
+    SequenceGroupMetadata,
+    SequenceGroupOutput,
+    SequenceStatus,
+)
+from vllm.tracing import (
+    SpanAttributes,
+    SpanKind,
+    extract_trace_context,
+    init_tracer,
+)
 from vllm.transformers_utils.detokenizer import Detokenizer
 from vllm.transformers_utils.tokenizer import AnyTokenizer
 from vllm.transformers_utils.tokenizer_group import (
-    BaseTokenizerGroup, init_tokenizer_from_configs)
-from vllm.usage.usage_lib import (UsageContext, is_usage_stats_enabled,
-                                  usage_message)
-from vllm.utils import (Counter, Device, deprecate_kwargs,
-                        resolve_obj_by_qualname, weak_bind)
+    BaseTokenizerGroup,
+    init_tokenizer_from_configs,
+)
+from vllm.usage.usage_lib import (
+    UsageContext,
+    is_usage_stats_enabled,
+    usage_message,
+)
+from vllm.utils import (
+    Counter,
+    Device,
+    deprecate_kwargs,
+    resolve_obj_by_qualname,
+    weak_bind,
+)
 from vllm.version import __version__ as VLLM_VERSION
 from vllm.worker.model_runner_base import InputProcessingError
 
@@ -285,7 +335,8 @@ class LLMEngine:
         # If usage stat is enabled, collect relevant info.
         if is_usage_stats_enabled():
             from vllm.model_executor.model_loader import (
-                get_architecture_class_name)
+                get_architecture_class_name,
+            )
             usage_message.report_usage(
                 get_architecture_class_name(self.model_config),
                 usage_context,
@@ -376,8 +427,10 @@ class LLMEngine:
                 # We need to set PROMETHEUS_MULTIPROC_DIR environment variable
                 # before prometheus_client is imported.
                 # See https://prometheus.github.io/client_python/multiprocess/
-                from vllm.engine.metrics import (LoggingStatLogger,
-                                                 PrometheusStatLogger)
+                from vllm.engine.metrics import (
+                    LoggingStatLogger,
+                    PrometheusStatLogger,
+                )
 
                 self.stat_loggers = {
                     "logging":
@@ -462,11 +515,13 @@ class LLMEngine:
             executor_class = distributed_executor_backend
         elif distributed_executor_backend == "ray":
             from vllm.executor.ray_distributed_executor import (
-                RayDistributedExecutor)
+                RayDistributedExecutor,
+            )
             executor_class = RayDistributedExecutor
         elif distributed_executor_backend == "mp":
             from vllm.executor.mp_distributed_executor import (
-                MultiprocessingDistributedExecutor)
+                MultiprocessingDistributedExecutor,
+            )
             assert not envs.VLLM_USE_RAY_SPMD_WORKER, (
                 "multiprocessing distributed executor backend does not "
                 "support VLLM_USE_RAY_SPMD_WORKER=1")
@@ -511,12 +566,16 @@ class LLMEngine:
         """Creates an LLM engine from the engine arguments."""
         # Create the engine configs.
         vllm_config = engine_args.create_engine_config(usage_context)
-
+        
         engine_cls = cls
         if envs.VLLM_USE_V1:
             from vllm.v1.engine.llm_engine import LLMEngine as V1LLMEngine
             engine_cls = V1LLMEngine
+        
+        import dataclasses
+        formatted_vllm_config = "\n".join([f"{k}: {v}" for k, v in dataclasses.asdict(vllm_config).items()])
 
+        logger.info(f"LLM::FROM_ENGINE_ARGS:\nvllm_config\n{formatted_vllm_config} \nusage_context\n{usage_context} \nstat_loggers\n{stat_loggers} \ndisable_log_stats\n{engine_args.disable_log_stats}")
         return engine_cls.from_vllm_config(
             vllm_config=vllm_config,
             usage_context=usage_context,

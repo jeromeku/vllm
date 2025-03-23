@@ -11,16 +11,21 @@ import torch.nn as nn
 from vllm.envs import VLLM_MM_INPUT_CACHE_GIB
 from vllm.inputs import InputProcessingContext
 from vllm.logger import init_logger
-from vllm.transformers_utils.tokenizer import (AnyTokenizer,
-                                               cached_tokenizer_from_config)
+from vllm.transformers_utils.tokenizer import (
+    AnyTokenizer,
+    cached_tokenizer_from_config,
+)
 from vllm.utils import ClassRegistry
 
 from .audio import AudioPlugin
 from .base import MultiModalInputMapper, MultiModalPlugin, MultiModalTokensCalc
 from .image import ImagePlugin
 from .inputs import MultiModalDataDict, MultiModalKwargs, NestedTensors
-from .processing import (BaseMultiModalProcessor, BaseProcessingInfo,
-                         ProcessingCache)
+from .processing import (
+    BaseMultiModalProcessor,
+    BaseProcessingInfo,
+    ProcessingCache,
+)
 from .profiling import BaseDummyInputsBuilder, MultiModalProfiler
 from .video import VideoPlugin
 
@@ -399,6 +404,10 @@ class MultiModalRegistry:
         See also:
             :ref:`mm-processing`
         """
+        import inspect
+        prev_frame = inspect.currentframe().f_back
+        #print calling file and line number
+        print(f"Calling file: {prev_frame.f_code.co_filename}:{prev_frame.f_lineno}")
 
         def wrapper(model_cls: N) -> N:
             if self._processor_factories.contains(model_cls, strict=True):
