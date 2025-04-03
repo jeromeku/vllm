@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     VLLM_DO_NOT_TRACK: bool = False
     VLLM_USAGE_SOURCE: str = ""
     VLLM_CONFIGURE_LOGGING: int = 1
-    VLLM_LOGGING_LEVEL: str = "INFO"
+    VLLM_LOGGING_LEVEL: str = "DEBUG"
     VLLM_LOGGING_PREFIX: str = ""
     VLLM_LOGGING_CONFIG_PATH: Optional[str] = None
     VLLM_LOGITS_PROCESSOR_THREADS: Optional[int] = None
