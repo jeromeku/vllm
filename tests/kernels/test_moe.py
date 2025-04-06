@@ -100,6 +100,145 @@ def test_fused_moe(
                                atol=2e-2,
                                rtol=0)
 
+@pytest.mark.parametrize("m", [1, 33, 64])
+@pytest.mark.parametrize("n", [128, 1024, 8192])
+@pytest.mark.parametrize("k", [5120])
+@pytest.mark.parametrize("e", [16])
+@pytest.mark.parametrize("topk", [1])
+@pytest.mark.parametrize("ep_size", [1])
+@pytest.mark.parametrize("dtype", [torch.bfloat16])
+@pytest.mark.parametrize("padding", [False])
+def test_moe_debug(
+    m: int,
+    n: int,
+    k: int,
+    e: int,
+    topk: int,
+    ep_size: int,
+    dtype: torch.dtype,
+    padding: bool,
+):
+    a = torch.randn((m, k), device="cuda", dtype=dtype) / 10
+    w1 = torch.randn((e, 2 * n, k), device="cuda", dtype=dtype) / 10
+    w2 = torch.randn((e, k, n), device="cuda", dtype=dtype) / 10
+
+    score = torch.randn((m, e), device="cuda", dtype=dtype)
+
+    if ep_size > 1:
+        local_e = e // ep_size
+        e_ids = torch.randint(0,
+                              e, (local_e, ),
+                              device="cuda",
+                              dtype=torch.int32)
+        e_map = torch.full((e, ), -1, device="cuda", dtype=torch.int32)
+        e_map[e_ids] = torch.arange(local_e, device="cuda", dtype=torch.int32)
+        w1 = w1[e_ids]
+        w2 = w2[e_ids]
+    else:
+        e_map = None
+
+    torch_output = torch_moe(a, w1, w2, score, topk, e_map)
+    iterative_output = iterative_moe(a,
+                                     w1,
+                                     w2,
+                                     score,
+                                     topk,
+                                     global_num_experts=e,
+                                     expert_map=e_map,
+                                     renormalize=False)
+
+    # Pad the weight if moe padding is enabled
+    if padding:
+        w1 = F.pad(w1, (0, 128), "constant", 0)[..., 0:-128]
+        torch.cuda.empty_cache()
+        w2 = F.pad(w2, (0, 128), "constant", 0)[..., 0:-128]
+        torch.cuda.empty_cache()
+
+    triton_output = fused_moe(a,
+                              w1,
+                              w2,
+                              score,
+                              topk,
+                              global_num_experts=e,
+                              expert_map=e_map,
+                              renormalize=False)
+    torch.testing.assert_close(triton_output, torch_output, atol=2e-2, rtol=0)
+    torch.testing.assert_close(iterative_output,
+                               torch_output,
+                               atol=2e-2,
+                               rtol=0)
+
+@pytest.mark.parametrize("m", [64])
+@pytest.mark.parametrize("n", [512])
+@pytest.mark.parametrize("k", [512])
+@pytest.mark.parametrize("e", [16])
+@pytest.mark.parametrize("topk", [1])
+@pytest.mark.parametrize("ep_size", [1])
+@pytest.mark.parametrize("dtype", [torch.bfloat16])
+@pytest.mark.parametrize("padding", [False])
+@pytest.mark.parametrize("apply_router_weight_on_input", [True, False])
+def test_llama4_moe(
+    m: int,
+    n: int,
+    k: int,
+    e: int,
+    topk: int,
+    ep_size: int,
+    dtype: torch.dtype,
+    padding: bool,
+    apply_router_weight_on_input: bool,
+):
+    from vllm.model_executor.models.llama4 import Llama4MoE
+    a = torch.randn((m, k), device="cuda", dtype=dtype) / 10
+    w1 = torch.randn((e, 2 * n, k), device="cuda", dtype=dtype) / 10
+    w2 = torch.randn((e, k, n), device="cuda", dtype=dtype) / 10
+
+    score = torch.randn((m, e), device="cuda", dtype=dtype)
+
+    if ep_size > 1:
+        local_e = e // ep_size
+        e_ids = torch.randint(0,
+                              e, (local_e, ),
+                              device="cuda",
+                              dtype=torch.int32)
+        e_map = torch.full((e, ), -1, device="cuda", dtype=torch.int32)
+        e_map[e_ids] = torch.arange(local_e, device="cuda", dtype=torch.int32)
+        w1 = w1[e_ids]
+        w2 = w2[e_ids]
+    else:
+        e_map = None
+
+    routing_fn = Llama4MoE.custom_routing_function if apply_router_weight_on_input else None
+
+    if apply_router_weight_on_input:
+        topk_weights, topk_ids = routing_fn(a, score, topk, renormalize=False)
+        torch_output = torch_moe(a, w1, w2, score, topk, e_map, topk_weights, topk_ids)
+    else:
+        torch_output = torch_moe(a, w1, w2, score, topk, e_map)
+
+    # Pad the weight if moe padding is enabled
+    if padding:
+        w1 = F.pad(w1, (0, 128), "constant", 0)[..., 0:-128]
+        torch.cuda.empty_cache()
+        w2 = F.pad(w2, (0, 128), "constant", 0)[..., 0:-128]
+        torch.cuda.empty_cache()
+    
+    from vllm.model_executor.models.llama4 import Llama4MoE
+
+    triton_output = fused_moe(a,
+                              w1,
+                              w2,
+                              score,
+                              topk,
+                              global_num_experts=e,
+                              expert_map=e_map,
+                              renormalize=False,
+                              custom_routing_function=routing_fn)
+    torch.testing.assert_close(triton_output, torch_output, atol=2e-2, rtol=0)
+    # torch.testing.assert_close(iterative_output,
+    #                            torch_output,
+    #                            atol=2e-2,
+    #                            rtol=0)
 
 @pytest.mark.parametrize("m", [1, 32, 222])
 @pytest.mark.parametrize("n", [128, 1024, 2048])
