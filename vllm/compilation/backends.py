@@ -317,6 +317,10 @@ class VllmBackend:
         self,
         vllm_config: VllmConfig,
     ):
+
+        import os
+        logger.debug(f"DEBUG::VllmBackend::{__file__}: {os.getpid()} {os.getppid()}")
+
         global global_graph_pool
         if global_graph_pool is None:
             global_graph_pool = torch.cuda.graph_pool_handle()
@@ -360,6 +364,8 @@ class VllmBackend:
         inductor_config[PASS_KEY] = self.post_grad_pass_manager
 
     def __call__(self, graph: fx.GraphModule, example_inputs) -> Callable:
+        import os
+        logger.debug(f"DEBUG::{__file__}::VllmBackend::call: {os.getpid()} {os.getppid()}")
 
         vllm_config = self.vllm_config
         if not self.compilation_config.cache_dir:

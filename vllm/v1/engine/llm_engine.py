@@ -19,7 +19,9 @@ from vllm.pooling_params import PoolingParams
 from vllm.prompt_adapter.request import PromptAdapterRequest
 from vllm.sampling_params import SamplingParams
 from vllm.transformers_utils.tokenizer_group import (
-    TokenizerGroup, init_tokenizer_from_configs)
+    TokenizerGroup,
+    init_tokenizer_from_configs,
+)
 from vllm.usage.usage_lib import UsageContext
 from vllm.utils import Device
 from vllm.v1.engine.core_client import EngineCoreClient
@@ -88,6 +90,7 @@ class LLMEngine:
         self.output_processor = OutputProcessor(self.tokenizer,
                                                 log_stats=False)
 
+        breakpoint()
         # EngineCore (gets EngineCoreRequests and gives EngineCoreOutputs)
         self.engine_core = EngineCoreClient.make_client(
             multiprocess_mode=multiprocess_mode,

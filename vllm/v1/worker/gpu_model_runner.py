@@ -13,10 +13,15 @@ import torch.nn as nn
 from vllm.attention import AttentionType, get_attn_backend
 from vllm.attention.layer import Attention
 from vllm.attention.utils.fa_utils import get_flash_attn_version
-from vllm.config import (CompilationLevel, VllmConfig,
-                         get_layers_from_vllm_config)
-from vllm.distributed.kv_transfer import (get_kv_transfer_group,
-                                          has_kv_transfer_group)
+from vllm.config import (
+    CompilationLevel,
+    VllmConfig,
+    get_layers_from_vllm_config,
+)
+from vllm.distributed.kv_transfer import (
+    get_kv_transfer_group,
+    has_kv_transfer_group,
+)
 from vllm.distributed.parallel_state import get_pp_group, graph_capture
 from vllm.forward_context import set_forward_context
 from vllm.logger import init_logger
@@ -27,17 +32,31 @@ from vllm.multimodal.inputs import MultiModalKwargs, PlaceholderRange
 from vllm.multimodal.utils import group_mm_inputs_by_modality
 from vllm.sampling_params import SamplingType
 from vllm.sequence import IntermediateTensors
-from vllm.utils import (STR_DTYPE_TO_TORCH_DTYPE, DeviceMemoryProfiler,
-                        GiB_bytes, LayerBlockType, LazyLoader, cdiv,
-                        check_use_alibi, is_pin_memory_available)
+from vllm.utils import (
+    STR_DTYPE_TO_TORCH_DTYPE,
+    DeviceMemoryProfiler,
+    GiB_bytes,
+    LayerBlockType,
+    LazyLoader,
+    cdiv,
+    check_use_alibi,
+    is_pin_memory_available,
+)
 from vllm.v1.attention.backends.flash_attn import FlashAttentionMetadata
 from vllm.v1.attention.backends.utils import CommonAttentionMetadata
 from vllm.v1.core.encoder_cache_manager import compute_encoder_budget
-from vllm.v1.kv_cache_interface import (AttentionSpec, FullAttentionSpec,
-                                        KVCacheConfig, KVCacheSpec,
-                                        SlidingWindowSpec)
-from vllm.v1.outputs import (EMPTY_MODEL_RUNNER_OUTPUT, LogprobsTensors,
-                             ModelRunnerOutput)
+from vllm.v1.kv_cache_interface import (
+    AttentionSpec,
+    FullAttentionSpec,
+    KVCacheConfig,
+    KVCacheSpec,
+    SlidingWindowSpec,
+)
+from vllm.v1.outputs import (
+    EMPTY_MODEL_RUNNER_OUTPUT,
+    LogprobsTensors,
+    ModelRunnerOutput,
+)
 from vllm.v1.sample.metadata import SamplingMetadata
 from vllm.v1.sample.rejection_sampler import RejectionSampler
 from vllm.v1.sample.sampler import Sampler
@@ -49,8 +68,11 @@ from vllm.v1.utils import bind_kv_cache
 from vllm.v1.worker.gpu_input_batch import CachedRequestState, InputBatch
 from vllm.v1.worker.lora_model_runner_mixin import LoRAModelRunnerMixin
 
-from .utils import (gather_mm_placeholders, sanity_check_mm_encoder_outputs,
-                    scatter_mm_placeholders)
+from .utils import (
+    gather_mm_placeholders,
+    sanity_check_mm_encoder_outputs,
+    scatter_mm_placeholders,
+)
 
 if TYPE_CHECKING:
     import xgrammar as xgr
@@ -1074,6 +1096,11 @@ class GPUModelRunner(LoRAModelRunnerMixin):
         intermediate_tensors: Optional[IntermediateTensors] = None,
     ) -> Union[ModelRunnerOutput, IntermediateTensors]:
         # Update KVConnector with the KVConnector metadata forward().
+        import os
+        pid = os.getpid()
+        ppid = os.getppid()
+        logger.debug(f"DEBUG::EXECUTE_MODEL: {pid} {ppid}")
+        
         if has_kv_transfer_group():
             get_kv_transfer_group().bind_connector_metadata(
                 scheduler_output.kv_connector_metadata)

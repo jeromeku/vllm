@@ -22,15 +22,22 @@ from vllm.logger import init_logger
 from vllm.logging_utils.dump_input import dump_engine_exception
 from vllm.lora.request import LoRARequest
 from vllm.transformers_utils.config import (
-    maybe_register_config_serialize_by_value)
+    maybe_register_config_serialize_by_value,
+)
 from vllm.utils import resolve_obj_by_qualname, zmq_socket_ctx
-from vllm.v1.core.kv_cache_utils import (get_kv_cache_config,
-                                         unify_kv_cache_configs)
+from vllm.v1.core.kv_cache_utils import (
+    get_kv_cache_config,
+    unify_kv_cache_configs,
+)
 from vllm.v1.core.sched.interface import SchedulerInterface
 from vllm.v1.core.sched.output import SchedulerOutput
 from vllm.v1.core.sched.scheduler import Scheduler as V1Scheduler
-from vllm.v1.engine import (EngineCoreOutputs, EngineCoreRequest,
-                            EngineCoreRequestType, UtilityOutput)
+from vllm.v1.engine import (
+    EngineCoreOutputs,
+    EngineCoreRequest,
+    EngineCoreRequestType,
+    UtilityOutput,
+)
 from vllm.v1.engine.mm_input_cache import MirroredProcessingCache
 from vllm.v1.executor.abstract import Executor
 from vllm.v1.kv_cache_interface import KVCacheConfig
@@ -57,6 +64,9 @@ class EngineCore:
                  executor_fail_callback: Optional[Callable] = None):
         assert vllm_config.model_config.runner_type != "pooling"
 
+        import os
+        logger.debug(f"DEBUG::ENGINE_CORE: {os.getpid()} {os.getppid()}")
+        
         self.vllm_config = vllm_config
         logger.info("Initializing a V1 LLM engine (v%s) with config: %s",
                     VLLM_VERSION, vllm_config)
@@ -195,7 +205,8 @@ class EngineCore:
 
     def execute_model(self, scheduler_output: SchedulerOutput):
         try:
-            return self.model_executor.execute_model(scheduler_output)
+            breakpoint()
+            return self.model_executor.execute_model(scheduler_output) # self.model_executor.driver_worker.model_runner.model
         except BaseException as err:
             # NOTE: This method is exception-free
             dump_engine_exception(self.vllm_config, scheduler_output,

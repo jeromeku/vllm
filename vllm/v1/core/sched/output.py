@@ -10,7 +10,8 @@ if TYPE_CHECKING:
     import numpy.typing as npt
 
     from vllm.distributed.kv_transfer.kv_connector.v1.base import (
-        KVConnectorMetadata)
+        KVConnectorMetadata,
+    )
     from vllm.lora.request import LoRARequest
     from vllm.multimodal.inputs import MultiModalKwargs, PlaceholderRange
     from vllm.sampling_params import SamplingParams
