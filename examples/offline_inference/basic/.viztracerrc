@@ -1,0 +1,11 @@
+[default]
+ignore_frozen = True
+ignore_c_function = True
+log_func_args = True
+log_func_retval = True
+include_files = /home/jeromeku/vllm/vllm/
+pid_suffix = True
+output_dir = traces
+output_file = vizreport.json
+log_multiprocess = True
+log_subprocess = True

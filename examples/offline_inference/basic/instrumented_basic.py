@@ -1,9 +1,22 @@
+import os
 
-from dataclasses import asdict
+os.environ["VLLM_ENABLE_V1_MULTIPROCESSING"] = "0"
 
-import viztracer
+
+from viztracer import VizTracer, get_tracer
 
 from vllm import LLM, EngineArgs, SamplingParams
+
+tracer_kwargs = dict(
+    include_files=["/home/jeromeku/vllm/vllm"],
+    ignore_frozen=True,
+    ignore_c_function=True,
+    log_func_args=True,
+    log_func_retval=True,
+    dump_raw=False,
+    pid_suffix=True,
+    # output_dir="traces",
+)
 
 # Sample prompts.
 prompts = [
@@ -18,25 +31,24 @@ sampling_params = SamplingParams(temperature=0.8, top_p=0.95)
 
 def main():
     # Create an LLM.
-    tracer_kwargs = dict(
-        include_files=["/home/jeromeku/vllm/vllm"],
-        ignore_frozen=True,
-        ignore_c_function=True,
-        log_func_args=True,
-        log_func_retval=True,
-        dump_raw=False,
-    )
+    tracer = VizTracer(**tracer_kwargs)
 
-    tracer = viztracer.VizTracer(**tracer_kwargs)
+    # tracer = get_tracer()
+    # assert tracer is not None
+    
+    # for k,v in tracer_kwargs.items():
+    #     print(f"{k}: {getattr(tracer, k)}")
 
-    engine_args = EngineArgs(cuda_graph_sizes=[len(prompts)])
-
-    tracer.output_file = "llm.trace.json"
+    tracer.output_file = "llm.init.trace.json"
+    with tracer:
+        engine_args = EngineArgs(cuda_graph_sizes=[len(prompts)])
+        llm = LLM(model="facebook/opt-125m", cuda_graph_sizes=engine_args.cuda_graph_sizes)
+    
+    tracer.output_file = "generate.trace.json"
     
     with tracer:
-        llm = LLM(model="facebook/opt-125m", cuda_graph_sizes=engine_args.cuda_graph_sizes)
         outputs = llm.generate(prompts, sampling_params)
-    
+
 
     # tracer.output_file = "LLM.generate.trace.json"
     
