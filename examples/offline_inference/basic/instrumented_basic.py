@@ -1,7 +1,7 @@
 import os
 
-os.environ["VLLM_ENABLE_V1_MULTIPROCESSING"] = "0"
-
+os.environ["VLLM_ENABLE_V1_MULTIPROCESSING"] = "1"
+os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
 
 from viztracer import VizTracer, get_tracer
 

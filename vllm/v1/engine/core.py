@@ -21,15 +21,22 @@ from vllm.logger import init_logger
 from vllm.logging_utils.dump_input import dump_engine_exception
 from vllm.lora.request import LoRARequest
 from vllm.transformers_utils.config import (
-    maybe_register_config_serialize_by_value)
+    maybe_register_config_serialize_by_value,
+)
 from vllm.utils import make_zmq_socket, resolve_obj_by_qualname, zmq_socket_ctx
-from vllm.v1.core.kv_cache_utils import (get_kv_cache_config,
-                                         unify_kv_cache_configs)
+from vllm.v1.core.kv_cache_utils import (
+    get_kv_cache_config,
+    unify_kv_cache_configs,
+)
 from vllm.v1.core.sched.interface import SchedulerInterface
 from vllm.v1.core.sched.output import SchedulerOutput
 from vllm.v1.core.sched.scheduler import Scheduler as V1Scheduler
-from vllm.v1.engine import (EngineCoreOutputs, EngineCoreRequest,
-                            EngineCoreRequestType, UtilityOutput)
+from vllm.v1.engine import (
+    EngineCoreOutputs,
+    EngineCoreRequest,
+    EngineCoreRequestType,
+    UtilityOutput,
+)
 from vllm.v1.engine.mm_input_cache import MirroredProcessingCache
 from vllm.v1.executor.abstract import Executor
 from vllm.v1.kv_cache_interface import KVCacheConfig
@@ -448,6 +455,29 @@ class EngineCoreProc(EngineCore):
                         local_dp_rank: int = 0,
                         **kwargs):
         """Launch EngineCore busy loop in background process."""
+        import os
+
+        from viztracer import VizTracer, get_tracer
+
+        _tracer = get_tracer()
+
+        if _tracer is not None:
+            print(f"{__file__}::TRACE:{os.getpid()}: Tracer already instantiated with {_tracer.init_kwargs}!")
+            tracer = None
+        else:
+            tracer_kwargs = dict(
+                include_files=["/home/jeromeku/vllm/vllm"],
+                ignore_frozen=True,
+                ignore_c_function=True,
+                log_func_args=True,
+                log_func_retval=True,
+                dump_raw=False,
+                pid_suffix=True,
+                output_file="engine.trace.json",
+            )
+            tracer = VizTracer(**tracer_kwargs)
+            print(f"{__file__}::TRACE: Starting tracer from {os.getpid()} from parent {os.getppid()} with {tracer.init_kwargs}")
+            tracer.start()        
 
         # Signal handler used for graceful termination.
         # SystemExit exception is only raised once to allow this and worker
@@ -483,6 +513,8 @@ class EngineCoreProc(EngineCore):
 
         except SystemExit:
             logger.debug("EngineCore exiting.")
+            if tracer is not None:
+                tracer.stop()
             raise
         except Exception as e:
             if engine_core is None:
@@ -492,6 +524,10 @@ class EngineCoreProc(EngineCore):
                 engine_core._send_engine_dead()
             raise e
         finally:
+            if tracer is not None:
+                tracer.stop()
+                tracer.save()
+            print(f"TRACE::{os.getpid()}: Engine exiting, stopping tracer, saving trace to {tracer.output_file}")
             if engine_core is not None:
                 engine_core.shutdown()
 
