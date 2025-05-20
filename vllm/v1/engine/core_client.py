@@ -20,10 +20,19 @@ import zmq.asyncio
 from vllm.config import ParallelConfig, VllmConfig
 from vllm.logger import init_logger
 from vllm.lora.request import LoRARequest
-from vllm.utils import (get_open_port, get_open_zmq_inproc_path,
-                        get_open_zmq_ipc_path, get_tcp_uri, make_zmq_socket)
-from vllm.v1.engine import (EngineCoreOutputs, EngineCoreRequest,
-                            EngineCoreRequestType, UtilityOutput)
+from vllm.utils import (
+    get_open_port,
+    get_open_zmq_inproc_path,
+    get_open_zmq_ipc_path,
+    get_tcp_uri,
+    make_zmq_socket,
+)
+from vllm.v1.engine import (
+    EngineCoreOutputs,
+    EngineCoreRequest,
+    EngineCoreRequestType,
+    UtilityOutput,
+)
 from vllm.v1.engine.core import EngineCore, EngineCoreProc
 from vllm.v1.engine.exceptions import EngineDeadError
 from vllm.v1.executor.abstract import Executor
