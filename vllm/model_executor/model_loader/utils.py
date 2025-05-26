@@ -13,16 +13,24 @@ from torch import nn
 from transformers.dynamic_module_utils import get_class_from_dynamic_module
 
 from vllm.attention import Attention
-from vllm.config import (ModelConfig, ModelImpl, VllmConfig,
-                         set_current_vllm_config)
+from vllm.config import (
+    ModelConfig,
+    ModelImpl,
+    VllmConfig,
+    set_current_vllm_config,
+)
 from vllm.logger import init_logger
 from vllm.model_executor.layers.linear import QKVCrossParallelLinear
 from vllm.model_executor.layers.quantization.base_config import (
-    QuantizationConfig, QuantizeMethodBase)
+    QuantizationConfig,
+    QuantizeMethodBase,
+)
 from vllm.model_executor.models import ModelRegistry
-from vllm.model_executor.models.adapters import (as_classification_model,
-                                                 as_embedding_model,
-                                                 as_reward_model)
+from vllm.model_executor.models.adapters import (
+    as_classification_model,
+    as_embedding_model,
+    as_reward_model,
+)
 from vllm.utils import is_pin_memory_available
 
 logger = init_logger(__name__)

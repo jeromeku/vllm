@@ -147,7 +147,7 @@ def hf_overrides(
     
     return _inner
 
-def test_qwen3(model_arch: str):
+def test_qwen3(model_arch: str, load_dummy: bool = False):
     from vllm.debugging import get_tracer
 
     model_info = QWEN3_EXAMPLE_MODELS.get_hf_info(model_arch)
@@ -176,7 +176,7 @@ def test_qwen3(model_arch: str):
             else None,
             trust_remote_code=model_info.trust_remote_code,
             max_model_len=model_info.max_model_len,
-            load_format="dummy",
+            load_format="dummy" if load_dummy else None,
             hf_overrides=hf_overrides(model_info),
         )
 
