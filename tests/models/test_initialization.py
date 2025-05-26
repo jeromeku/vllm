@@ -4,6 +4,7 @@ import os
 os.environ["VLLM_ENABLE_V1_MULTIPROCESSING"] = "0"
 os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
 os.environ["VLLM_LOGGING_LEVEL"] = "DEBUG"
+os.environ["VLLM_TRACE_FUNCTION"] = "1"
 
 from contextlib import ExitStack
 from unittest.mock import patch
@@ -164,7 +165,7 @@ def test_qwen3(model_arch: str, load_dummy: bool = False):
         stack.enter_context(patch.object(V1EngineCore, "_initialize_kv_caches", _initialize_kv_caches_v1))
         stack.enter_context(tracer)
 
-        LLM(
+        llm = LLM(
             model_info.default,
             tokenizer=model_info.tokenizer,
             tokenizer_mode=model_info.tokenizer_mode,
@@ -176,7 +177,7 @@ def test_qwen3(model_arch: str, load_dummy: bool = False):
             else None,
             trust_remote_code=model_info.trust_remote_code,
             max_model_len=model_info.max_model_len,
-            load_format="dummy" if load_dummy else None,
+            # load_format="dummy" if load_dummy else None,
             hf_overrides=hf_overrides(model_info),
         )
 
