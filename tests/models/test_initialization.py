@@ -1,7 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
-
 import os
-from functools import partial
+
+os.environ["VLLM_ENABLE_V1_MULTIPROCESSING"] = "0"
+os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
+os.environ["VLLM_LOGGING_LEVEL"] = "DEBUG"
+
+from contextlib import ExitStack
 from unittest.mock import patch
 
 import pytest
@@ -94,18 +98,19 @@ def test_can_initialize(model_arch: str, monkeypatch: pytest.MonkeyPatch):
 
 
 def _initialize_kv_caches_v1(self, vllm_config):
-    logger.info("Overriding v1 kvcache...")
+    logger.debug("Overriding v1 kvcache...")
     kv_cache_specs = self.model_executor.get_kv_cache_specs()
     scheduler_kv_cache_config = get_kv_cache_config(
         vllm_config,
         kv_cache_specs[0],
         10 * GiB_bytes,
     )
-
+    # gpu_blocks (> 0), cpu_blocks, scheduler_kv_cache_config
+    return 1, 0, scheduler_kv_cache_config
 
 # Avoid calling model.forward()
 def _initialize_kv_caches_v0(self) -> None:
-    logger.info("Overriding v0 kvcache...")
+    logger.debug("Overriding v0 kvcache...")
 
     self.cache_config.num_gpu_blocks = 0
     self.cache_config.num_cpu_blocks = 0
@@ -114,32 +119,33 @@ def _initialize_kv_caches_v0(self) -> None:
 # Avoid OOM and reduce initialization time by only using 1 layer
 def hf_overrides(
     model_info,
-    hf_config: PretrainedConfig,
 ) -> PretrainedConfig:
-    hf_config.update(model_info.hf_overrides)
+    def _inner(hf_config: PretrainedConfig):
+        hf_config.update(model_info.hf_overrides)
+        text_config = hf_config.get_text_config()
 
-    text_config = hf_config.get_text_config()
-
-    text_config.update(
-        {
-            "num_layers": 1,
-            "num_hidden_layers": 1,
-            "num_experts": 2,
-            "num_experts_per_tok": 2,
-            "num_local_experts": 2,
-        }
-    )
-
-    if hasattr(hf_config, "vision_config"):
-        hf_config.vision_config.update(
+        text_config.update(
             {
                 "num_layers": 1,
                 "num_hidden_layers": 1,
+                "num_experts": 2,
+                "num_experts_per_tok": 2,
+                "num_local_experts": 2,
             }
         )
 
-    return hf_config
+        if hasattr(hf_config, "vision_config"):
+            hf_config.vision_config.update(
+                {
+                    "num_layers": 1,
+                    "num_hidden_layers": 1,
+                }
+            )
 
+        return hf_config
+    _inner.__name__ = "debugging_config"
+    
+    return _inner
 
 def test_qwen3(model_arch: str):
     from vllm.debugging import get_tracer
@@ -153,14 +159,11 @@ def test_qwen3(model_arch: str):
     print(f"Testing model {model_id}")
     tracer.output_file = f"{model_id}.init.json"
 
-    with (
-        patch.object(
-            V0LLMEngine, "_initialize_kv_caches", _initialize_kv_caches_v0
-        ),
-        patch.object(
-            V1EngineCore, "_initialize_kv_caches", _initialize_kv_caches_v1
-        ),
-    ):
+    with ExitStack() as stack:
+        stack.enter_context(patch.object(V0LLMEngine, "_initialize_kv_caches", _initialize_kv_caches_v0))
+        stack.enter_context(patch.object(V1EngineCore, "_initialize_kv_caches", _initialize_kv_caches_v1))
+        stack.enter_context(tracer)
+
         LLM(
             model_info.default,
             tokenizer=model_info.tokenizer,
@@ -174,7 +177,7 @@ def test_qwen3(model_arch: str):
             trust_remote_code=model_info.trust_remote_code,
             max_model_len=model_info.max_model_len,
             load_format="dummy",
-            hf_overrides=partial(hf_overrides, model_info=model_info),
+            hf_overrides=hf_overrides(model_info),
         )
 
 

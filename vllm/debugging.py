@@ -10,16 +10,14 @@ _VLLM_ROOT = None
 
 def _get_vllm_root():
     global _VLLM_ROOT
-    if _VLLM_ROOT is not None:
-        return
+    if _VLLM_ROOT is None:
+        import os
 
-    import os
+        import vllm
 
-    import vllm
-
-    _VLLM_ROOT = os.path.dirname(os.path.abspath(vllm.__file__))
-    logger.info(f"Setting VLLM_ROOT: {_VLLM_ROOT}")
-
+        _VLLM_ROOT = os.path.dirname(os.path.abspath(vllm.__file__))
+        logger.info(f"Setting VLLM_ROOT: {_VLLM_ROOT}")
+    return _VLLM_ROOT
 
 DEFAULT_INCLUDES = [_get_vllm_root()]
 
@@ -44,10 +42,11 @@ def get_tracer(
     pid_suffix=True,
     **kwargs,
 ):
-    frame = inspect.currentframe()
-    args_info = inspect.getargvalues(frame)
-    all_kwargs = args_info.locals.get(args_info.keywords)
-    print(f"all kwarg: {all_kwargs}")
+    # frame = inspect.currentframe()
+    # args_info = inspect.getargvalues(frame)
+    # all_kwargs = args_info.locals.get(args_info.keywords)
+    # print(f"all kwarg: {all_kwargs}")
+    # breakpoint()
 
     tracer = viztracer.get_tracer()
     if tracer is None:
