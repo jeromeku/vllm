@@ -20,10 +20,17 @@ import torch.nn as nn
 
 from vllm.logger import init_logger
 
-from .interfaces import (has_inner_state, has_noops, is_attention_free,
-                         is_hybrid, supports_cross_encoding,
-                         supports_multimodal, supports_pp,
-                         supports_transcription, supports_v0_only)
+from .interfaces import (
+    has_inner_state,
+    has_noops,
+    is_attention_free,
+    is_hybrid,
+    supports_cross_encoding,
+    supports_multimodal,
+    supports_pp,
+    supports_transcription,
+    supports_v0_only,
+)
 from .interfaces_base import is_text_generation_model
 
 logger = init_logger(__name__)
@@ -337,13 +344,14 @@ class _LazyRegisteredModel(_BaseRegisteredModel):
         return getattr(mod, self.class_name)
 
 
-@lru_cache(maxsize=128)
+#@lru_cache(maxsize=128)
 def _try_load_model_cls(
     model_arch: str,
     model: _BaseRegisteredModel,
 ) -> Optional[type[nn.Module]]:
     from vllm.platforms import current_platform
     current_platform.verify_model_arch(model_arch)
+    breakpoint()
     try:
         return model.load_model_cls()
     except Exception:

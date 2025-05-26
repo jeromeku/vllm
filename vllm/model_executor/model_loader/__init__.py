@@ -7,17 +7,22 @@ from torch import nn
 from vllm.config import LoadConfig, LoadFormat, ModelConfig, VllmConfig
 from vllm.model_executor.model_loader.base_loader import BaseModelLoader
 from vllm.model_executor.model_loader.bitsandbytes_loader import (
-    BitsAndBytesModelLoader)
+    BitsAndBytesModelLoader,
+)
 from vllm.model_executor.model_loader.default_loader import DefaultModelLoader
 from vllm.model_executor.model_loader.dummy_loader import DummyModelLoader
 from vllm.model_executor.model_loader.gguf_loader import GGUFModelLoader
 from vllm.model_executor.model_loader.runai_streamer_loader import (
-    RunaiModelStreamerLoader)
+    RunaiModelStreamerLoader,
+)
 from vllm.model_executor.model_loader.sharded_state_loader import (
-    ShardedStateLoader)
+    ShardedStateLoader,
+)
 from vllm.model_executor.model_loader.tensorizer_loader import TensorizerLoader
 from vllm.model_executor.model_loader.utils import (
-    get_architecture_class_name, get_model_architecture)
+    get_architecture_class_name,
+    get_model_architecture,
+)
 
 
 def get_model_loader(load_config: LoadConfig) -> BaseModelLoader:
@@ -52,6 +57,7 @@ def get_model_loader(load_config: LoadConfig) -> BaseModelLoader:
 def get_model(*,
               vllm_config: VllmConfig,
               model_config: Optional[ModelConfig] = None) -> nn.Module:
+    breakpoint()
     loader = get_model_loader(vllm_config.load_config)
     if model_config is None:
         model_config = vllm_config.model_config
