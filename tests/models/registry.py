@@ -265,6 +265,12 @@ _TEXT_GENERATION_EXAMPLE_MODELS = {
     "BartForConditionalGeneration": _HfExamplesInfo("facebook/bart-large-cnn"),
 }
 
+_QWEN3_EXAMPLE_MODELS = {
+    "Qwen3ForCausalLM": _HfExamplesInfo("Qwen/Qwen3-0.6B"),
+    "Qwen3ForCausalLMFP8": _HfExamplesInfo("Qwen/Qwen3-0.6B-FP8"),
+    "Qwen3MoeForCausalLM": _HfExamplesInfo("Qwen/Qwen3-30B-A3B"),
+
+}
 _EMBEDDING_EXAMPLE_MODELS = {
     # [Text-only]
     "BertModel": _HfExamplesInfo("BAAI/bge-base-en-v1.5"),
@@ -479,3 +485,4 @@ class HfExampleModels:
 
 
 HF_EXAMPLE_MODELS = HfExampleModels(_EXAMPLE_MODELS)
+QWEN3_EXAMPLE_MODELS = HfExampleModels(_QWEN3_EXAMPLE_MODELS)
