@@ -8,22 +8,31 @@ import torch
 import torch.nn as nn
 from torch.nn.parameter import Parameter, UninitializedParameter
 
-from vllm.distributed import (divide, get_tensor_model_parallel_rank,
-                              get_tensor_model_parallel_world_size,
-                              split_tensor_along_last_dim,
-                              tensor_model_parallel_all_gather,
-                              tensor_model_parallel_all_reduce)
+from vllm.distributed import (
+    divide,
+    get_tensor_model_parallel_rank,
+    get_tensor_model_parallel_world_size,
+    split_tensor_along_last_dim,
+    tensor_model_parallel_all_gather,
+    tensor_model_parallel_all_reduce,
+)
 from vllm.logger import init_logger
 from vllm.model_executor.layers.quantization.base_config import (
-    QuantizationConfig, QuantizeMethodBase)
+    QuantizationConfig,
+    QuantizeMethodBase,
+)
 from vllm.model_executor.layers.utils import dispatch_unquantized_gemm
+
 # yapf: disable
-from vllm.model_executor.parameter import (BasevLLMParameter,
-                                           BlockQuantScaleParameter,
-                                           PackedColumnParameter,
-                                           PackedvLLMParameter,
-                                           PerTensorScaleParameter,
-                                           RowvLLMParameter)
+from vllm.model_executor.parameter import (
+    BasevLLMParameter,
+    BlockQuantScaleParameter,
+    PackedColumnParameter,
+    PackedvLLMParameter,
+    PerTensorScaleParameter,
+    RowvLLMParameter,
+)
+
 # yapf: enable
 from vllm.model_executor.utils import set_weight_attrs
 
@@ -407,6 +416,8 @@ class ColumnParallelLinear(LinearBase):
             output_sizes = [output_size]
 
         assert self.quant_method is not None
+        breakpoint()
+        
         self.quant_method.create_weights(
             layer=self,
             input_size_per_partition=self.input_size_per_partition,
@@ -761,7 +772,9 @@ class MergedColumnParallelLinear(ColumnParallelLinear):
 
         if isinstance(param, BlockQuantScaleParameter):
             from vllm.model_executor.layers.quantization.fp8 import (
-                Fp8LinearMethod, Fp8MoEMethod)
+                Fp8LinearMethod,
+                Fp8MoEMethod,
+            )
             assert self.quant_method is not None
             assert isinstance(self.quant_method,
                               (Fp8LinearMethod, Fp8MoEMethod))
