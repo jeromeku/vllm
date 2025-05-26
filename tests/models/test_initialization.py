@@ -26,6 +26,8 @@ from .registry import HF_EXAMPLE_MODELS, QWEN3_EXAMPLE_MODELS
 
 NUM_LAYERS_TO_LOAD = 1
 
+def vllm_trace_enabled():
+    return os.environ.get("VLLM_TRACE_FUNCTION", 0) == "1"
 
 def get_layer_prefixes_to_exclude(
     model_id: str, num_layers_to_load: int = NUM_LAYERS_TO_LOAD
@@ -197,7 +199,8 @@ def test_qwen3(model_arch: str, num_layers_to_load: int = 1):
         model_info.default, num_layers_to_load=num_layers_to_load
     )
 
-    tracer = get_tracer()
+    if not vllm_trace_enabled():
+        tracer = get_tracer()
     model_id = model_arch.split("/")[-1]
     print(f"Testing model {model_id}")
     tracer.output_file = f"{model_id}.init.json"
@@ -213,7 +216,8 @@ def test_qwen3(model_arch: str, num_layers_to_load: int = 1):
                 V1EngineCore, "_initialize_kv_caches", _initialize_kv_caches_v1
             )
         )
-        stack.enter_context(tracer)
+        if not vllm_trace_enabled():
+            stack.enter_context(tracer)
 
         llm = LLM(
             model_info.default,
