@@ -105,7 +105,7 @@ def get_attn_backend(
     )
 
 
-@cache
+# @cache()
 def _cached_get_attn_backend(
     head_size: int,
     dtype: torch.dtype,

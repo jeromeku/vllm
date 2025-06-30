@@ -187,6 +187,8 @@ class LLM:
     ) -> None:
         """LLM constructor."""
 
+        import os
+        print(f"{__file__}: {os.getpid()=} {os.getppid()=}")
         if "disable_log_stats" not in kwargs:
             kwargs["disable_log_stats"] = True
 

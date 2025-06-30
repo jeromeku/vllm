@@ -59,6 +59,9 @@ class Attention(nn.Module):
         `self.kv_cache`.
         """
         super().__init__()
+        import os
+        
+        print(f"{__file__}: {os.getpid()=} {os.getppid()=}")
         if per_layer_sliding_window is not None:
             # per-layer sliding window
             sliding_window = per_layer_sliding_window
@@ -202,6 +205,7 @@ class Attention(nn.Module):
         context using
         `vllm.forward_context.get_forward_context().attn_metadata`.
         """
+
         if self.calculate_kv_scales:
             attn_metadata = get_forward_context().attn_metadata
             if attn_metadata.enable_kv_scales_calculation:
@@ -401,7 +405,7 @@ def unified_attention(
     layer_name: str,
 ) -> torch.Tensor:
     wait_for_kv_layer_from_connector(layer_name)
-
+    breakpoint()
     forward_context: ForwardContext = get_forward_context()
     attn_metadata = forward_context.attn_metadata
     if isinstance(attn_metadata, dict):

@@ -204,6 +204,7 @@ class Qwen3MoeAttention(nn.Module):
             base=rope_theta,
             rope_scaling=rope_scaling,
         )
+
         self.attn = Attention(self.num_heads,
                               self.head_dim,
                               self.scaling,
