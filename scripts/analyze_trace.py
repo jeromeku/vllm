@@ -41,6 +41,7 @@ def flatten_args(df: pd.DataFrame) -> pd.DataFrame:
     """Move nested args.X fields to top-level args.X columns."""
     if "args" in df.columns:
         args = pd.json_normalize(df["args"]).add_prefix("args.")
+        args.columns = args.columns.str.replace(" ", "_")
         df = pd.concat([df.drop(columns=["args"]), args], axis=1)
     return df
 
@@ -125,6 +126,7 @@ def main():
 
     # 4. build records  ------------------------------------------------------
     records = []
+    
     if corr_col:
         # link via correlation id
         host_by_corr = host_df.set_index(corr_col)
@@ -137,11 +139,15 @@ def main():
             if isinstance(host_row, pd.DataFrame):
                 host_row = host_row.iloc[0]
 
-            ancestors = [host_row, *anc_map[host_row["_evt_id"]]]
+            # ancestors = [host_row, *anc_map[host_row["_evt_id"]]]
+            # Flip so that cudaLaunchKernel is the final host event
+            ancestors = [*anc_map[host_row["_evt_id"]], host_row]
+            
             records.append({
-                "radix_kernel":     slim(g),
-                "cudaLaunchKernel": slim(host_row),
-                "ancestors":        [slim(a) for a in ancestors],   # inner → outer
+                "kernel_name": g['name'],
+                "kernel_info": g,
+                # "cudaLaunchKernel": slim(host_row),
+                "ancestors": [slim(a) for a in ancestors],   # inner → outer
             })
     else:
         # no correlation column -> just dump ancestors of each kernel itself
@@ -152,7 +158,12 @@ def main():
             })
 
     # 5. write out ----------------------------------------------------------
-    pd.DataFrame(records).to_json(dst, orient="records", indent=2)
+
+    ancestor_df = pd.DataFrame(records)
+    
+    print(ancestor_df)
+    ancestor_df.to_csv('radix_ancestors.csv')
+    # ancestor_df.to_json(dst, orient="records", indent=2)
     print(f"✅  wrote {dst}  ({len(records)} kernels processed)")
 
 
