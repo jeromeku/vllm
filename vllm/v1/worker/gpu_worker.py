@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """A GPU worker class."""
+
 import gc
 import os
 from typing import TYPE_CHECKING, Optional
@@ -12,9 +13,11 @@ import torch.nn as nn
 import vllm.envs as envs
 from vllm.config import VllmConfig
 from vllm.device_allocator.cumem import CuMemAllocator
-from vllm.distributed import (ensure_model_parallel_initialized,
-                              init_distributed_environment,
-                              set_custom_all_reduce)
+from vllm.distributed import (
+    ensure_model_parallel_initialized,
+    init_distributed_environment,
+    set_custom_all_reduce,
+)
 from vllm.distributed.kv_transfer import ensure_kv_transfer_initialized
 from vllm.distributed.parallel_state import get_pp_group, get_tp_group
 from vllm.logger import init_logger
@@ -28,6 +31,7 @@ from vllm.v1.outputs import ModelRunnerOutput
 from vllm.v1.utils import report_usage_stats
 from vllm.v1.worker.gpu_model_runner import GPUModelRunner
 from vllm.v1.worker.worker_base import WorkerBase
+from torch._C._profiler import _ExperimentalConfig
 
 logger = init_logger(__name__)
 
@@ -37,7 +41,6 @@ if TYPE_CHECKING:
 
 
 class Worker(WorkerBase):
-
     def __init__(
         self,
         vllm_config: VllmConfig,
@@ -46,16 +49,18 @@ class Worker(WorkerBase):
         distributed_init_method: str,
         is_driver_worker: bool = False,
     ):
-
-        super().__init__(vllm_config=vllm_config,
-                         local_rank=local_rank,
-                         rank=rank,
-                         distributed_init_method=distributed_init_method,
-                         is_driver_worker=is_driver_worker)
+        super().__init__(
+            vllm_config=vllm_config,
+            local_rank=local_rank,
+            rank=rank,
+            distributed_init_method=distributed_init_method,
+            is_driver_worker=is_driver_worker,
+        )
 
         if self.model_config.trust_remote_code:
             # note: lazy import to avoid importing torch before initializing
             from vllm.utils import init_cached_hf_modules
+
             init_cached_hf_modules()
 
         # Buffers saved before sleep
@@ -65,16 +70,51 @@ class Worker(WorkerBase):
         # VLLM_TORCH_PROFILER_DIR=/path/to/save/trace
         if envs.VLLM_TORCH_PROFILER_DIR:
             torch_profiler_trace_dir = envs.VLLM_TORCH_PROFILER_DIR
-            logger.info("Profiling enabled. Traces will be saved to: %s",
-                        torch_profiler_trace_dir)
+            logger.info("Profiling enabled. Traces will be saved to: %s", torch_profiler_trace_dir)
+            cfg = _ExperimentalConfig(
+                verbose=True,
+            )
+
+            def trace_handler(prof: torch.profiler.profile):
+                import datetime
+
+                now = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+                trace_dir = os.path.join(torch_profiler_trace_dir, f"{now}/rank{rank}")
+                if not os.path.exists(trace_dir):
+                    os.makedirs(trace_dir, exist_ok=True)
+                model_name = vllm_config.model_config.model.split("/")[-1]
+                trace_path = f"{trace_dir}/{model_name}.json"
+                stacks_path = f"{trace_dir}/{model_name}_stacks.txt"
+                prof.export_chrome_trace(trace_path)
+                prof.export_stacks(stacks_path, metric="self_cuda_time_total")
+
+                logger.info(f"Finished dumping profiler traces to {trace_path}")  # noqa
+
             self.profiler = torch.profiler.profile(
                 activities=[
                     torch.profiler.ProfilerActivity.CPU,
                     torch.profiler.ProfilerActivity.CUDA,
                 ],
                 with_stack=True,
-                on_trace_ready=torch.profiler.tensorboard_trace_handler(
-                    torch_profiler_trace_dir, use_gzip=True))
+                experimental_config=cfg,
+                on_trace_ready=trace_handler,
+                # use_cuda=True
+                # on_trace_ready=torch.profiler.tensorboard_trace_handler(
+                #     torch_profiler_trace_dir, use_gzip=True)
+                )
+            
+            # self.profiler = torch.profiler.profile(
+            #     activities=[
+            #         torch.profiler.ProfilerActivity.CPU,
+            #         torch.profiler.ProfilerActivity.CUDA,
+            #     ],
+            #     with_stack=True,
+            #     on_trace_ready=trace_handler,
+            #     # on_trace_ready=torch.profiler.tensorboard_trace_handler(
+            #     #     torch_profiler_trace_dir, use_gzip=True
+            #     # ),
+            #     experimental_config=cfg,
+            # )
         else:
             self.profiler = None
 
@@ -85,20 +125,20 @@ class Worker(WorkerBase):
         if level == 2:
             model = self.model_runner.model
             self._sleep_saved_buffers = {
-                name: buffer.cpu().clone()
-                for name, buffer in model.named_buffers()
+                name: buffer.cpu().clone() for name, buffer in model.named_buffers()
             }
 
         allocator = CuMemAllocator.get_instance()
-        allocator.sleep(offload_tags=("weights", ) if level == 1 else tuple())
+        allocator.sleep(offload_tags=("weights",) if level == 1 else tuple())
         free_bytes_after_sleep, total = torch.cuda.mem_get_info()
         freed_bytes = free_bytes_after_sleep - free_bytes_before_sleep
         used_bytes = total - free_bytes_after_sleep
         assert freed_bytes >= 0, "Memory usage increased after sleeping."
         logger.info(
-            "Sleep mode freed %.2f GiB memory, "
-            "%.2f GiB memory is still in use.", freed_bytes / GiB_bytes,
-            used_bytes / GiB_bytes)
+            "Sleep mode freed %.2f GiB memory, %.2f GiB memory is still in use.",
+            freed_bytes / GiB_bytes,
+            used_bytes / GiB_bytes,
+        )
 
     def wake_up(self, tags: Optional[list[str]] = None) -> None:
         allocator = CuMemAllocator.get_instance()
@@ -112,8 +152,7 @@ class Worker(WorkerBase):
                     buffer.data.copy_(self._sleep_saved_buffers[name].data)
             self._sleep_saved_buffers = {}
 
-    def initialize_cache(self, num_gpu_blocks: int,
-                         num_cpu_blocks: int) -> None:
+    def initialize_cache(self, num_gpu_blocks: int, num_cpu_blocks: int) -> None:
         self.cache_config.num_gpu_blocks = num_gpu_blocks
         self.cache_config.num_cpu_blocks = num_cpu_blocks
 
@@ -138,8 +177,9 @@ class Worker(WorkerBase):
 
             # take current memory snapshot
             self.init_snapshot = MemorySnapshot()
-            self.requested_memory = (self.init_snapshot.total_memory *
-                                     self.cache_config.gpu_memory_utilization)
+            self.requested_memory = (
+                self.init_snapshot.total_memory * self.cache_config.gpu_memory_utilization
+            )
             if self.init_snapshot.free_memory < self.requested_memory:
                 GiB = lambda b: round(b / GiB_bytes, 2)
                 raise ValueError(
@@ -152,18 +192,16 @@ class Worker(WorkerBase):
                     f"utilization or reduce GPU memory used by other processes."
                 )
         else:
-            raise RuntimeError(
-                f"Not support device type: {self.device_config.device}")
+            raise RuntimeError(f"Not support device type: {self.device_config.device}")
         # Initialize the distributed environment.
-        init_worker_distributed_environment(self.vllm_config, self.rank,
-                                            self.distributed_init_method,
-                                            self.local_rank)
+        init_worker_distributed_environment(
+            self.vllm_config, self.rank, self.distributed_init_method, self.local_rank
+        )
         # Set random seed.
         set_random_seed(self.model_config.seed)
 
         # Construct the model runner
-        self.model_runner: GPUModelRunner = GPUModelRunner(
-            self.vllm_config, self.device)
+        self.model_runner: GPUModelRunner = GPUModelRunner(self.vllm_config, self.device)
 
         if self.rank == 0:
             # If usage stat is enabled, collect relevant info.
@@ -175,18 +213,19 @@ class Worker(WorkerBase):
         if self.vllm_config.model_config.enable_sleep_mode:
             allocator = CuMemAllocator.get_instance()
             assert allocator.get_current_usage() == 0, (
-                "Sleep mode can only be "
-                "used for one instance per process.")
+                "Sleep mode can only be used for one instance per process."
+            )
             context = allocator.use_memory_pool(tag="weights")
         else:
             from contextlib import nullcontext
+
             context = nullcontext()
         with context:
             self.model_runner.load_model()
 
     @torch.inference_mode()
     def determine_available_memory(self) -> int:
-        """Profiles the peak memory usage of the model to determine how much 
+        """Profiles the peak memory usage of the model to determine how much
         memory can be used for KV cache without OOMs.
 
         The engine will first conduct a profiling of the existing memory usage.
@@ -204,9 +243,8 @@ class Worker(WorkerBase):
         # Execute a forward pass with dummy inputs to profile the memory usage
         # of the model.
         with memory_profiling(
-                self.init_snapshot,
-                weights_memory=int(
-                    self.model_runner.model_memory_usage)) as profile_result:
+            self.init_snapshot, weights_memory=int(self.model_runner.model_memory_usage)
+        ) as profile_result:
             self.model_runner.profile_run()
 
         free_gpu_memory = profile_result.after_profile.free_memory
@@ -219,18 +257,18 @@ class Worker(WorkerBase):
             "This happens when other processes sharing the same container "
             "release GPU memory while vLLM is profiling during initialization. "
             "To fix this, ensure consistent GPU memory allocation or "
-            "isolate vLLM in its own container.")
-        available_kv_cache_memory = self.requested_memory \
-            - profile_result.non_kv_cache_memory
+            "isolate vLLM in its own container."
+        )
+        available_kv_cache_memory = self.requested_memory - profile_result.non_kv_cache_memory
 
         logger.debug(
-            "Initial free memory: %.2f GiB, free memory: %.2f GiB, "
-            "requested GPU memory: %.2f GiB",
-            GiB(self.init_snapshot.free_memory), GiB(free_gpu_memory),
-            GiB(self.requested_memory))
+            "Initial free memory: %.2f GiB, free memory: %.2f GiB, requested GPU memory: %.2f GiB",
+            GiB(self.init_snapshot.free_memory),
+            GiB(free_gpu_memory),
+            GiB(self.requested_memory),
+        )
         logger.debug(profile_result)
-        logger.info("Available KV cache memory: %.2f GiB",
-                    GiB(available_kv_cache_memory))
+        logger.info("Available KV cache memory: %.2f GiB", GiB(available_kv_cache_memory))
         gc.collect()
 
         return int(available_kv_cache_memory)
@@ -245,6 +283,7 @@ class Worker(WorkerBase):
             context = allocator.use_memory_pool(tag="kv_cache")
         else:
             from contextlib import nullcontext
+
             context = nullcontext()
         with context:
             self.model_runner.initialize_kv_cache(kv_cache_config)
@@ -256,8 +295,9 @@ class Worker(WorkerBase):
         warmup_sizes = self.vllm_config.compilation_config.compile_sizes.copy()
         if not self.model_config.enforce_eager:
             warmup_sizes = [
-                x for x in warmup_sizes if x not in
-                self.vllm_config.compilation_config.cudagraph_capture_sizes
+                x
+                for x in warmup_sizes
+                if x not in self.vllm_config.compilation_config.cudagraph_capture_sizes
             ]
         # We skip EPLB here since we don't want to record dummy metrics
         for size in sorted(warmup_sizes, reverse=True):
@@ -272,20 +312,19 @@ class Worker(WorkerBase):
         # NOTE: This is called after `capture_model` on purpose to prevent
         # memory buffers from being cleared by `torch.cuda.empty_cache`.
         if get_pp_group().is_last_rank:
-            max_num_reqs = min(self.scheduler_config.max_num_seqs,
-                               self.scheduler_config.max_num_batched_tokens)
+            max_num_reqs = min(
+                self.scheduler_config.max_num_seqs, self.scheduler_config.max_num_batched_tokens
+            )
 
             # We skip EPLB here since we don't want to record dummy metrics
-            hidden_states, last_hidden_states = \
-                self.model_runner._dummy_run(
-                    num_tokens=max_num_reqs,
-                    skip_eplb=True,
-                )
+            hidden_states, last_hidden_states = self.model_runner._dummy_run(
+                num_tokens=max_num_reqs,
+                skip_eplb=True,
+            )
             if self.model_runner.is_pooling_model:
                 self.model_runner._dummy_pooler_run(hidden_states)
             else:
-                self.model_runner._dummy_sampler_run(
-                    hidden_states=last_hidden_states)
+                self.model_runner._dummy_sampler_run(hidden_states=last_hidden_states)
 
         # Reset the seed to ensure that the random state is not affected by
         # the model initialization and profiling.
@@ -302,17 +341,17 @@ class Worker(WorkerBase):
         intermediate_tensors = None
         if not get_pp_group().is_first_rank:
             intermediate_tensors = IntermediateTensors(
-                get_pp_group().recv_tensor_dict(
-                    all_gather_group=get_tp_group()))
+                get_pp_group().recv_tensor_dict(all_gather_group=get_tp_group())
+            )
 
-        output = self.model_runner.execute_model(scheduler_output,
-                                                 intermediate_tensors)
+        output = self.model_runner.execute_model(scheduler_output, intermediate_tensors)
         parallel_config = self.vllm_config.parallel_config
-        if parallel_config.distributed_executor_backend != "external_launcher" \
-            and not get_pp_group().is_last_rank:
+        if (
+            parallel_config.distributed_executor_backend != "external_launcher"
+            and not get_pp_group().is_last_rank
+        ):
             assert isinstance(output, IntermediateTensors)
-            get_pp_group().send_tensor_dict(output.tensors,
-                                            all_gather_group=get_tp_group())
+            get_pp_group().send_tensor_dict(output.tensors, all_gather_group=get_tp_group())
             return None
         assert isinstance(output, ModelRunnerOutput)
         return output if self.is_driver_worker else None
@@ -324,9 +363,12 @@ class Worker(WorkerBase):
             self.profiler.start()
         else:
             self.profiler.stop()
-            print(self.profiler.key_averages().table(
-                sort_by="self_cuda_time_total"))
-
+            print(
+                self.profiler.key_averages().table(
+                    sort_by="self_cuda_time_total", row_limit=-1, max_name_column_width=100
+                )
+            )
+            
     def execute_dummy_batch(self) -> None:
         self.model_runner._dummy_run(1)
 
@@ -353,6 +395,7 @@ class Worker(WorkerBase):
         max_size: Optional[int] = None,
     ) -> None:
         from vllm.model_executor.model_loader import ShardedStateLoader
+
         ShardedStateLoader.save_model(
             self.model_runner.model,
             path,
@@ -365,7 +408,8 @@ class Worker(WorkerBase):
         tensorizer_config: "TensorizerConfig",
     ) -> None:
         self.model_runner.save_tensorized_model(
-            tensorizer_config=tensorizer_config, )
+            tensorizer_config=tensorizer_config,
+        )
 
 
 def init_worker_distributed_environment(
@@ -379,11 +423,13 @@ def init_worker_distributed_environment(
     parallel_config = vllm_config.parallel_config
     set_custom_all_reduce(not parallel_config.disable_custom_all_reduce)
 
-    init_distributed_environment(parallel_config.world_size, rank,
-                                 distributed_init_method, local_rank, backend)
+    init_distributed_environment(
+        parallel_config.world_size, rank, distributed_init_method, local_rank, backend
+    )
 
-    ensure_model_parallel_initialized(parallel_config.tensor_parallel_size,
-                                      parallel_config.pipeline_parallel_size)
+    ensure_model_parallel_initialized(
+        parallel_config.tensor_parallel_size, parallel_config.pipeline_parallel_size
+    )
 
     ensure_kv_transfer_initialized(vllm_config)
 
@@ -405,4 +451,5 @@ def _check_if_gpu_supports_dtype(torch_dtype: torch.dtype):
                 "Bfloat16 is only supported on GPUs with compute capability "
                 f"of at least 8.0. Your {gpu_name} GPU {compute_str}. "
                 "You can use float16 instead by explicitly setting the "
-                "`dtype` flag in CLI, for example: --dtype=half.")
+                "`dtype` flag in CLI, for example: --dtype=half."
+            )
