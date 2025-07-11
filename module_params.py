@@ -5,15 +5,19 @@ os.environ["VLLM_ENABLE_V1_MULTIPROCESSING"] = "0"
 from safetensors.torch import safe_open
 from vllm.model_executor.models.qwen3_moe import Qwen3MoeForCausalLM
 import torch
-from vllm.config import VllmConfig, ModelConfig, set_current_vllm_config
+from vllm.config import VllmConfig, ModelConfig, set_current_vllm_config, CompilationConfig, CompilationLevel, get_config
 from vllm.distributed import parallel_state
 from vllm.utils import get_ip, get_open_port, get_distributed_init_method
 from vllm.distributed.parallel_state import (
     init_distributed_environment,
     ensure_model_parallel_initialized,
 )
+from vllm.model_executor.model_loader.utils import initialize_model
+hf_config = get_config("model_cache", trust_remote_code=True)
+print(f"{hf_config=}")
+compile_config = CompilationConfig(level=CompilationLevel.PIECEWISE, cudagraph_capture_sizes=[1])
 model_config = ModelConfig(model="model_cache", hf_config_path="model_cache")
-vllm_config = VllmConfig(model_config=model_config)
+vllm_config = VllmConfig(model_config=model_config, compilation_config=compile_config)
 
 init_method = get_distributed_init_method(get_ip(), get_open_port())
 
@@ -45,4 +49,5 @@ with set_current_vllm_config(vllm_config):
     #         print(f"{name}:{param.data.shape}")
 
     with torch.device("meta"):
-        model = Qwen3MoeForCausalLM(vllm_config=vllm_config)
+        # model = Qwen3MoeForCausalLM(vllm_config=vllm_config)
+        initialize_model(vllm_config)
