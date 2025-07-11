@@ -444,6 +444,7 @@ class Qwen3MoeModel(nn.Module):
                             ignore_suffixes) and name not in params_dict:
                         continue
                     param = params_dict[name]
+                    breakpoint()
                     weight_loader = param.weight_loader
                     weight_loader(param,
                                   loaded_weight,

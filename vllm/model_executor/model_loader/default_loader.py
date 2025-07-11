@@ -126,7 +126,6 @@ class DefaultModelLoader(BaseModelLoader):
 
         if allow_patterns_overrides is not None:
             allow_patterns = allow_patterns_overrides
-
         if not is_local:
             hf_folder = download_weights_from_hf(
                 model_name_or_path,
