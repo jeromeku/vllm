@@ -50,4 +50,18 @@ with set_current_vllm_config(vllm_config):
 
     with torch.device("meta"):
         # model = Qwen3MoeForCausalLM(vllm_config=vllm_config)
-        initialize_model(vllm_config)
+        model = initialize_model(vllm_config)
+
+    
+def recurse_modules(module: torch.nn.Module, prefix="", indent=""):
+    module_name = getattr(module, "name", None) or type(module).__name__
+    
+    for name, child in module.named_children():
+        fqn = ".".join([prefix, name]) if prefix else name
+        print(f"{indent}{module_name}, {name} -> {fqn}")
+        recurse_modules(child, prefix=fqn, indent=indent + " ")
+
+recurse_modules(model)
+# print(f"{type(model).__name__} named params:")
+# for name, param in model.named_parameters(recurse=True):
+#     print(f"{name}")
