@@ -506,7 +506,6 @@ class SyncMPClient(MPClient):
             executor_class=executor_class,
             log_stats=log_stats,
         )
-
         self.is_dp = self.vllm_config.parallel_config.data_parallel_size > 1
         self.outputs_queue = queue.Queue[Union[EngineCoreOutputs, Exception]]()
 

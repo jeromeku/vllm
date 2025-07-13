@@ -105,7 +105,6 @@ class LLMEngine:
             executor_class=executor_class,
             log_stats=self.log_stats,
         )
-
         if not multiprocess_mode:
             # for v0 compatibility
             self.model_executor = self.engine_core.engine_core.model_executor  # type: ignore
