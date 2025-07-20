@@ -190,18 +190,15 @@ def _trace_calls(log_path, root_dir, frame, event, arg=None):
                 if event == 'call':
                     f.write(f"{ts} Call to"
                             f" {func_name} in {filename}:{lineno}"
-                            f" from {last_func_name} in {last_filename}:"
-                            f"{last_lineno}\n")
+                            f" from {last_func_name} in {last_filename}:{last_lineno}\n")
                 else:
                     f.write(f"{ts} Return from"
                             f" {func_name} in {filename}:{lineno}"
-                            f" to {last_func_name} in {last_filename}:"
-                            f"{last_lineno}\n")
+                            f" to {last_func_name} in {last_filename}:{last_lineno}\n")
         except NameError:
             # modules are deleted during shutdown
             pass
     return partial(_trace_calls, log_path, root_dir)
-
 
 def enable_trace_function_call(log_file_path: str,
                                root_dir: Optional[str] = None):

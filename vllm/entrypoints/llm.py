@@ -59,7 +59,7 @@ if TYPE_CHECKING:
 logger = init_logger(__name__)
 
 _R = TypeVar("_R", default=Any)
-
+logger.debug("LLM TEST")
 
 class LLM:
     """An LLM for generating texts from given prompts and sampling parameters.
