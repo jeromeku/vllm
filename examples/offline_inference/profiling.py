@@ -464,6 +464,7 @@ Profile a model
         "-n",
         "--num-steps",
         type=int,
+        default=1,
         help="Number of engine steps to profile.\n"
         "Setting it to 1, profiles only the prefill step.\n"
         "Setting it to 2, profiles the prefill and first decode step\n"
