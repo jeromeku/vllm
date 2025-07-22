@@ -111,7 +111,16 @@ def main(args: argparse.Namespace):
     decode_prof.results.print_model_table()
     print()
     decode_prof.results.print_summary_table()
+    import json
+    decode_results = decode_prof.results.convert_stats_to_dict()
+    prefill_results = prefill_prof.results.convert_stats_to_dict()
 
+    with open("prefill_prof.json", 'w') as f:
+        json.dump(prefill_results, f)
+
+    with open("decode_prof.json", 'w') as f:
+        json.dump(decode_results, f)
+    
 if __name__ == "__main__":
     args = parse_args()
     main(args)
