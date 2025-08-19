@@ -84,7 +84,7 @@ def register_prepare_and_finalize(
     global MK_MULTI_GPU_PREPARE_FINALIZE_TYPES
     global MK_SINGLE_GPU_PREPARE_FINALIZE_TYPES
     assert kind not in PREPARE_FINALIZE_INFO
-
+    breakpoint()
     PREPARE_FINALIZE_INFO[kind] = PrepareFinalizeInfo(
         activation_format,
         supported_dtypes,
@@ -112,7 +112,7 @@ def register_experts(
     global EXPERT_INFO
     global MK_FUSED_EXPERT_TYPES
     assert kind not in EXPERT_INFO
-
+    breakpoint()
     EXPERT_INFO[kind] = ExpertInfo(
         activation_format,
         supported_dtypes,
@@ -176,7 +176,7 @@ register_experts(
 )
 
 # Disable on blackwell for now
-if has_deep_ep() and not current_platform.has_device_capability(100):
+if has_deep_ep():# and not current_platform.has_device_capability(100):
     from vllm.model_executor.layers.fused_moe.deepep_ht_prepare_finalize import (  # noqa: E501
         DeepEPHTPrepareAndFinalize)
     from vllm.model_executor.layers.fused_moe.deepep_ll_prepare_finalize import (  # noqa: E501
@@ -390,7 +390,7 @@ def make_fused_experts(
     w1_gs: Optional[torch.Tensor],
     w2_gs: Optional[torch.Tensor],
 ) -> mk.FusedMoEPermuteExpertsUnpermute:
-
+    breakpoint()
     use_fp8 = moe.quant_dtype == torch.float8_e4m3fn
     batch_kwargs = {
         "max_num_tokens": moe.max_num_tokens,
