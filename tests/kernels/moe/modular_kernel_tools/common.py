@@ -123,7 +123,7 @@ class Config:
         vllm_config = VllmConfig()
         vllm_config.parallel_config.data_parallel_size = self.world_size
         vllm_config.parallel_config.enable_expert_parallel = True
-
+        breakpoint()
         env_dict = {
             "VLLM_USE_DEEP_GEMM": str(int(self.needs_deep_gemm())),
         }

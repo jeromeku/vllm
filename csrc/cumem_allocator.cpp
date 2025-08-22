@@ -7,6 +7,7 @@ extern "C" {
 
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
+#include <pybind11/pybind11.h>
 
 #include <sys/types.h>
 #include <cuda_runtime_api.h>
@@ -346,4 +347,28 @@ PyMODINIT_FUNC PyInit_cumem_allocator(void) {
   }
   return module;
 }
-}  // extern "C"
+
+// -------------------------
+// pybind11 module
+// -------------------------
+PYBIND11_MODULE(_vmm_alloc, m) {
+  m.doc() = "CUDA VMM allocator with sleep/wake, exportable to PyTorch MemPool";
+
+  m.def("sleep", &vmm_sleep, "Unmap+release all physical allocations (keep VA).");
+  m.def("wake",  &vmm_wake,  "Recreate physical allocations and remap to same VAs.");
+  m.def("num_tracked", []() { return static_cast<uint64_t>(vmm_num_tracked()); },
+        "Number of live tracked segments.");
+  // Expose addresses for debugging (optional).
+  m.def("_tracked_ptrs", []() {
+    std::lock_guard<std::mutex> lk(g_mu);
+    std::vector<uint64_t> addrs;
+    addrs.reserve(g_segments.size());
+    for (auto& kv : g_segments) addrs.push_back(reinterpret_cast<uint64_t>(kv.first));
+    return addrs;
+  });
+
+  // Expose the symbol names expected by CUDAPluggableAllocator (documentation aid)
+  m.attr("ALLOC_SYMBOL") = "vmm_malloc";
+  m.attr("FREE_SYMBOL")  = "vmm_free";
+}  
+}// extern "C"

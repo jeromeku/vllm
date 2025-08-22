@@ -1,0 +1,1 @@
+LD_DEBUG=libs,files LD_DEBUG_OUTPUT=./ld_debug python test_alloc.py
