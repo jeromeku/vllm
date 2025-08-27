@@ -389,6 +389,8 @@ class VocabParallelEmbedding(CustomOp):
             assert loaded_weight.shape[output_dim] == self.org_vocab_size
 
         # Copy the data. Select chunk corresponding to current shard.
+        import torch.distributed as dist
+        print(f"{__file__}:DEBUG rank{dist.get_rank()}: {output_dim=} {start_idx=} {shard_size=}")
         loaded_weight = loaded_weight.narrow(output_dim, start_idx, shard_size)
         param[:loaded_weight.shape[0]].data.copy_(loaded_weight)
         param[loaded_weight.shape[0]:].data.fill_(0)
