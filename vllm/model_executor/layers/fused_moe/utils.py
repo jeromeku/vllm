@@ -12,11 +12,12 @@ from vllm.model_executor.layers.quantization.utils.int8_utils import (
     per_token_group_quant_int8, per_token_quant_int8)
 from vllm.model_executor.layers.quantization.utils.mxfp4_utils import (
     quant_dequant_mxfp4)
+from vllm.model_executor.layers.quantization.utils.mxfp8_utils import (
+    mxfp8_quantize)
 from vllm.platforms import current_platform
 from vllm.triton_utils import tl, triton
 from vllm.utils import cdiv
-from vllm.utils.deep_gemm import (is_blackwell_deep_gemm_used,
-                                  per_token_group_cast_to_fp8)
+from vllm.utils.flashinfer import fp4_quantize
 
 
 @triton.jit
@@ -100,6 +101,16 @@ def _resize_cache(x: torch.Tensor, v: tuple[int, ...]) -> torch.Tensor:
     return x.flatten()[:prod(v)].view(*v)
 
 
+def _fp4_quantize(
+    A: torch.Tensor,
+    A_scale: Optional[torch.Tensor],
+    is_sf_swizzled_layout: bool,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    return fp4_quantize(A,
+                        A_scale,
+                        is_sf_swizzled_layout=is_sf_swizzled_layout)
+
+
 def _fp8_quantize(
     A: torch.Tensor,
     A_scale: Optional[torch.Tensor],
@@ -119,10 +130,7 @@ def _fp8_quantize(
         assert not per_act_token
         assert len(block_shape) == 2
         _, block_k = block_shape[0], block_shape[1]
-        if is_blackwell_deep_gemm_used():
-            A, A_scale = per_token_group_cast_to_fp8(A, block_k)
-        else:
-            A, A_scale = per_token_group_quant_fp8(A, block_k)
+        A, A_scale = per_token_group_quant_fp8(A, block_k)
         assert cdiv(A.size(-1), block_k) == A_scale.size(-1)
 
     return A, A_scale
@@ -171,19 +179,38 @@ def _mxfp4_quantize(
     return A, None
 
 
+def _mxfp8_quantize(
+    A: torch.Tensor,
+    A_scale: Optional[torch.Tensor],
+    per_act_token_quant: bool,
+    block_shape: Optional[list[int]] = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    assert A_scale is None
+    assert not per_act_token_quant
+    assert block_shape is None
+    return mxfp8_quantize(A)
+
+
 def moe_kernel_quantize_input(
     A: torch.Tensor,
     A_scale: Optional[torch.Tensor],
     quant_dtype: Union[None, torch.dtype, str],
     per_act_token_quant: bool,
     block_shape: Optional[list[int]] = None,
+    is_fp4_scale_swizzled: bool = True,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor]]:
     if quant_dtype == torch.float8_e4m3fn:
         return _fp8_quantize(A, A_scale, per_act_token_quant, block_shape)
     elif quant_dtype == torch.int8:
         return _int8_quantize(A, A_scale, per_act_token_quant, block_shape)
+    elif quant_dtype == "nvfp4":
+        return _fp4_quantize(A,
+                             A_scale,
+                             is_sf_swizzled_layout=is_fp4_scale_swizzled)
     elif quant_dtype == "mxfp4":
         return _mxfp4_quantize(A, A_scale, per_act_token_quant, block_shape)
+    elif quant_dtype == "mxfp8":
+        return _mxfp8_quantize(A, A_scale, per_act_token_quant, block_shape)
     else:
         return A, A_scale
 
