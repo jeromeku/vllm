@@ -1,0 +1,44 @@
+USER:
+Great - review the tests in vllm/tests/compile.  Explain what each test is doing and how each test is testing a torch.compile stage in isolation.
+
+Compare vllm's torch.compile usage with that of source https://github.com/pytorch/pytorch/_inductor.
+
+Next, do a similar deep dive into pytorch source inductor tests: https://github.com/pytorch/pytorch/test/inductor.  I am trying to understand how best to tweak torch.compile's pipeline to optimize LLM performance, either by introducing new passes, removing inefficiencies, or customizing decompositions, or generating novel operators.
+
+Walk me through what each test is doing and order your analysis logical compilation order -- the same order in which inductor lowers code.  Explain the purpose of each stage and optimization opportunities at each stage, giving ample examples and show the documented and more undocumented entrypoints / API surface at each stage.
+
+ASSISTANT:
+[See final response in PR]
+
+COMMAND LOG:
+ls
+cd vllm
+ls
+find .. -name AGENTS.md -print
+ls codex
+ls tests/compile
+ls tests/compile/piecewise
+sed -n '1,200p' tests/compile/test_basic_correctness.py
+sed -n '1,200p' tests/compile/test_config.py
+sed -n '1,200p' tests/compile/backend.py
+sed -n '1,200p' tests/compile/test_decorator.py
+sed -n '200,400p' tests/compile/test_decorator.py
+sed -n '1,200p' tests/compile/test_functionalization.py
+sed -n '1,200p' tests/compile/test_fusion.py
+sed -n '1,200p' tests/compile/test_fusion_all_reduce.py
+sed -n '1,200p' tests/compile/test_full_graph.py
+sed -n '1,200p' tests/compile/test_pass_manager.py
+sed -n '1,200p' tests/compile/test_sequence_parallelism.py
+sed -n '1,200p' tests/compile/test_silu_mul_quant_fusion.py
+sed -n '1,160p' tests/compile/piecewise/test_simple.py
+curl -L https://raw.githubusercontent.com/pytorch/pytorch/refs/heads/main/test/inductor/test_compile.py | sed -n '1,120p'
+curl -L https://api.github.com/repos/pytorch/pytorch/contents/test/inductor?ref=main | jq '.[] | .name'
+curl -L https://raw.githubusercontent.com/pytorch/pytorch/refs/heads/main/test/inductor/test_custom_post_grad_passes.py | head -n 80
+curl -L https://raw.githubusercontent.com/pytorch/pytorch/refs/heads/main/test/inductor/test_cudagraph_trees.py | head -n 80
+curl -L https://raw.githubusercontent.com/pytorch/pytorch/refs/heads/main/test/inductor/test_auto_functionalize.py | head -n 80
+curl -L https://raw.githubusercontent.com/pytorch/pytorch/refs/heads/main/test/inductor/test_inductor_scheduler.py | head -n 60
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+pip install pillow
+pip install 'pydantic<2'
+pip install -U pydantic
+pytest tests/compile/test_pass_manager.py

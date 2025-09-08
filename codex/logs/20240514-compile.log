@@ -1,0 +1,25 @@
+[2024-05-14] Conversation:
+USER: I'm trying to understand how vllm customizes uses torch.compile to optimize inference through modifying the compiled graph, adding custom passes, and through piecewise cudagraphs.
+Please provide a detailed function by function, line by line trace of each of vllm's custom compile passes, starting from the first compilation to compiled call.
+Document all your findings in codex/vllm-compilation: include full pathnames + line numbers and copius code snippets to supplement your explanations. Importantly, also cite relevant issues and PRs related to these custom compile implementations.
+
+Spare no details: I want to know exactly how vllm's various compile backends work line by line:
+- detail each part of the torch.compile it touches: what are torch compile APIs it uses, what parts does it hack around
+- Which stages of the compilation pipeline does it touch?
+- Are there repeated patterns across the various custom passes? Moreover, enumerate and trace each of the custom passes implemented
+- How does piecewise graphs work with torch.compile? Why does vllm use torch.compile's "cudagraph trees" (or does it) in favor of manual cuda.Graphs?
+
+Here are relevant paths:
+https://github.com/vllm-project/vllm/vllm/compilation
+https://github.com/vllm-project/vllm/tests/compile
+
+Commands executed:
+- ls
+- cd vllm
+- ls vllm
+- find .. -name AGENTS.md -print
+- ls tests/compile
+- sed -n on numerous compilation files (pass_manager.py, inductor_pass.py, ...)
+- nl -ba on files to capture line numbers
+- mkdir -p codex/vllm-compilation
+- created README.md and piecewise_demo.py
