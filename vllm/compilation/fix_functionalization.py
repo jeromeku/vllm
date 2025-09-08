@@ -33,7 +33,7 @@ class FixFunctionalizationPass(VllmInductorPass):
             logger.debug("XPU platform does not support fix functionalization"
                          "pass currently.")
             return
-
+        breakpoint()
         self.begin()
         self.dump_graph(graph, "before_fix_functionalization")
 
