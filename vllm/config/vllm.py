@@ -792,9 +792,19 @@ def set_current_vllm_config(
     so that all modules can access it, e.g. custom ops
     can access the vLLM config to determine how to dispatch.
     """
+    import inspect
+    caller = inspect.stack()[2]
+    
+    # Extract information
+    caller_file = caller.filename
+    caller_line = caller.lineno
+    caller_func = caller.function
+    
     global _current_vllm_config, _current_prefix
     old_vllm_config = _current_vllm_config
     old_prefix = _current_prefix
+    print(f"Called from: {caller_file}:{caller_line} in {caller_func}(): {_current_vllm_config=} {_current_prefix=} {check_compile=}")
+
     from vllm.compilation.counter import compilation_counter
 
     num_models_seen = compilation_counter.num_models_seen
@@ -805,6 +815,7 @@ def set_current_vllm_config(
     except Exception:
         raise
     else:
+        
         if check_compile:
             vllm_config.compilation_config.custom_op_log_check()
 
@@ -825,6 +836,8 @@ def set_current_vllm_config(
                 vllm_config.model_config.model,
             )
     finally:
+        # print(f"VLLM CONFIG AFTER COMPILE: {vllm_config.compilation_config.enabled_custom_ops=}")
+        # print(f"VLLM CONFIG AFTER COMPILE: {old_vllm_config.compilation_config.enabled_custom_ops=}")
         _current_vllm_config = old_vllm_config
         _current_prefix = old_prefix
         # Clear the compilation config cache when context changes

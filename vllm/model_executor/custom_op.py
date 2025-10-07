@@ -122,7 +122,7 @@ class CustomOp(nn.Module):
         enabled = f"+{cls.name}" in custom_ops
         disabled = f"-{cls.name}" in custom_ops
         assert not (enabled and disabled), f"Cannot enable and disable {cls.name}"
-
+        
         return (CustomOp.default_on() or enabled) and not disabled
 
     @staticmethod
