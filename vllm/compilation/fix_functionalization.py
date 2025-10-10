@@ -30,6 +30,18 @@ class FixFunctionalizationPass(VllmInductorPass):
     def __call__(self, graph: torch.fx.Graph):
         # XPU does not support auto-functionalization yet.
         # Will enable this when switch to vllm-xpu-kernels.
+        #breakpoint()
+
+        import inspect
+        frame = inspect.stack()[6]
+        print(f"DEBUG_FIX_FUNCTIONALIZAIONT_PASS:: {__file__}: {frame.filename}:{frame.lineno}")
+        frame = inspect.stack()[5]
+        print(f"DEBUG_FIX_FUNCTIONALIZAIONT_PASS:: {__file__}: {frame.filename}:{frame.lineno}")
+        frame = inspect.stack()[4]
+        print(f"DEBUG_FIX_FUNCTIONALIZAIONT_PASS:: {__file__}: {frame.filename}:{frame.lineno}")
+        frame = inspect.stack()[3]
+        print(f"DEBUG_FIX_FUNCTIONALIZAIONT_PASS:: {__file__}: {frame.filename}:{frame.lineno}")
+
         if current_platform.is_xpu():
             logger.debug(
                 "XPU platform does not support fix functionalizationpass currently."

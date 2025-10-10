@@ -417,6 +417,11 @@ class RMSNormQuantFusionPass(VllmPatternMatcherPass):
 
     @VllmInductorPass.time_and_log
     def __call__(self, graph: fx.Graph):
+        import inspect
+        frame = inspect.stack()[2]
+        print(f"DEBUG_VLLM_RMSNORM__call__::{frame.filename}:{frame.function}:{frame.lineno}")
+
+        #breakpoint()
         self.matched_count = self.patterns.apply(graph)
         logger.debug("Replaced %s patterns", self.matched_count)
 
