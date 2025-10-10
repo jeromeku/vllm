@@ -18,6 +18,7 @@ from vllm.model_executor.layers.quantization.utils.quant_utils import GroupShape
 from vllm.model_executor.layers.quantization.utils.w8a8_utils import Fp8LinearOp
 from vllm.model_executor.layers.rotary_embedding import get_rope
 from vllm.platforms import current_platform
+from torch._inductor import config as inductor_config
 
 
 class TestSiluMul(torch.nn.Module):
@@ -205,8 +206,11 @@ MODELS = [
     TestRotaryEmbeddingSliceScatter,
 ]
 
-TEST_FP8 = False #current_platform.supports_fp8()
-FP8_DTYPE = None #current_platform.fp8_dtype()
+ENABLE_AUTOFUNC_v2 = True
+inductor_config.enable_auto_functionalized_v2 = ENABLE_AUTOFUNC_v2
+
+TEST_FP8 = True #current_platform.supports_fp8()
+FP8_DTYPE = current_platform.fp8_dtype()
 
 
 MODEL_CLASS = TestSiluMul

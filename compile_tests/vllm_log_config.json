@@ -13,7 +13,7 @@
             "class": "logging.FileHandler",
             "formatter": "vllm",
             "level": "DEBUG",
-            "filename": "vllm.debug.log",
+            "filename": "%(VLLM_LOG_FILENAME)s",
             "mode": "w"
         }
     },

@@ -4,7 +4,6 @@ set -euo pipefail
 
 export VLLM_ENABLE_V1_MULTIPROCESSING=0
 export VLLM_LOGGING_LEVEL=DEBUG
-export VLLM_LOGGING_CONFIG_PATH="vllm_log_config.json"
 
 DT=$(date +"%Y%m%d%H%M")
 
@@ -14,7 +13,42 @@ LOG_PATH=${LOG_DIR}/${DT}.log
 
 # export VLLM_LOGGING_STREAM="${LOGDIR}/${DT}.log"
 export VLLM_DEBUG_DUMP_PATH="vllm_compile/${DT}"
-mkdir -p ${VLLM_DEBUG_DUMP_PATH}
+
+# Generate dynamic logging config with timestamp-based log filename
+VLLM_LOG_CONFIG="vllm_log_config.${DT}.json"
+VLLM_LOG_FILENAME="${LOG_DIR}/${DT}.vllm.debug.log"
+
+cat > ${VLLM_LOG_CONFIG} <<EOF
+{
+    "version": 1,
+    "disable_existing_loggers": false,
+    "formatters": {
+        "vllm": {
+            "class": "vllm.logging_utils.NewLineFormatter",
+            "datefmt": "%m-%d %H:%M:%S",
+            "format": "%(levelname)s %(asctime)s [%(pathname)s:%(lineno)d] %(message)s"
+        }
+    },
+    "handlers": {
+        "file": {
+            "class": "logging.FileHandler",
+            "formatter": "vllm",
+            "level": "DEBUG",
+            "filename": "${VLLM_LOG_FILENAME}",
+            "mode": "w"
+        }
+    },
+    "loggers": {
+        "vllm": {
+            "handlers": ["file"],
+            "level": "DEBUG",
+            "propagate": false
+        }
+    }
+}
+EOF
+
+export VLLM_LOGGING_CONFIG_PATH="${VLLM_LOG_CONFIG}"
 
 #export VLLM_PATTERN_MATCH_DEBUG=1
 TORCH_LOGS=""
