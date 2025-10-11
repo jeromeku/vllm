@@ -419,7 +419,7 @@ class RMSNormQuantFusionPass(VllmPatternMatcherPass):
     def __call__(self, graph: fx.Graph):
         import inspect
         frame = inspect.stack()[2]
-        print(f"DEBUG_VLLM_RMSNORM__call__::{frame.filename}:{frame.function}:{frame.lineno}")
+        print(f"DEBUG_VLLM_RMSNORMQuantFusionPass::__call__:: {frame.filename}:{frame.lineno}")
 
         #breakpoint()
         self.matched_count = self.patterns.apply(graph)

@@ -54,12 +54,13 @@ class TestBackend:
     def __call__(self, graph: fx.GraphModule, example_inputs):
         self.graph_pre_compile = deepcopy(graph)
         from torch._inductor.compile_fx import compile_fx
-
+        breakpoint()
         return compile_fx(graph, example_inputs, config_patches=self.inductor_config)
 
     @with_pattern_match_debug
     def post_pass(self, graph: fx.Graph):
         self.graph_pre_pass = deepcopy(graph)
+        breakpoint()
 
         VllmInductorPass.dump_prefix = 0
         for pass_ in self.custom_passes:
@@ -70,6 +71,7 @@ class TestBackend:
 
         self.graph_post_pass = deepcopy(graph)
         # assign by reference, will reflect the final state of the graph
+        breakpoint()
         self.final_graph = graph
 
     def check_before_ops(self, ops: Sequence[OpOverload], fully_replaced=True):

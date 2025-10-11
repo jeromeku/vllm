@@ -95,7 +95,9 @@ class VllmPatternMatcherPass(VllmInductorPass):
 
         TODO(luka): use pattern object to manually produce pattern graph
         """
+        
         debug_dump_path = config.compile_debug_dump_path()
+        print(f"DEBUG_VLLM_DUMP_PATH::{__file__}: {debug_dump_path=}")
         if not debug_dump_path:
             return
 

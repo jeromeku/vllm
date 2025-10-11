@@ -1,8 +1,8 @@
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+import os
 
 import torch
 from backend import TestBackend
+from torch._inductor import config as inductor_config
 
 import vllm.envs as envs
 from vllm.compilation.activation_quant_fusion import ActivationQuantFusionPass
@@ -18,7 +18,6 @@ from vllm.model_executor.layers.quantization.utils.quant_utils import GroupShape
 from vllm.model_executor.layers.quantization.utils.w8a8_utils import Fp8LinearOp
 from vllm.model_executor.layers.rotary_embedding import get_rope
 from vllm.platforms import current_platform
-from torch._inductor import config as inductor_config
 
 
 class TestSiluMul(torch.nn.Module):
@@ -206,7 +205,8 @@ MODELS = [
     TestRotaryEmbeddingSliceScatter,
 ]
 
-ENABLE_AUTOFUNC_v2 = True
+ENABLE_AUTOFUNC_v2 = os.environ.get("ENABLE_AUTOFUNC_V2", "0") == "1"
+print(f"{__file__}::{ENABLE_AUTOFUNC_v2=}")
 inductor_config.enable_auto_functionalized_v2 = ENABLE_AUTOFUNC_v2
 
 TEST_FP8 = True #current_platform.supports_fp8()
@@ -221,7 +221,7 @@ def test_fix_functionalization(model_class: torch.nn.Module, do_fusion: bool):
 
     vllm_config = VllmConfig()
     vllm_config.compilation_config = CompilationConfig(
-        pass_config=PassConfig(enable_fusion=do_fusion, enable_noop=True)
+        pass_config=PassConfig(enable_fusion=do_fusion, enable_noop=True), debug_dump_path=os.environ.get("VLLM_DEBUG_DUMP_PATH", None)
     )
     noop_pass = NoOpEliminationPass(vllm_config)
     fusion_pass = RMSNormQuantFusionPass(vllm_config)
